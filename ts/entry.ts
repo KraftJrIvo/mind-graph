@@ -1,4 +1,4 @@
-import {ones, Point2d, rect, Rect, rect_zeros, zeros} from "./math"
+import {ones, Point2d, pt, rect, Rect, rect_zeros, zeros} from "./math"
 import { DC } from "./types"
 
 const CORNER_R = 10
@@ -36,15 +36,27 @@ export class GrabPoint {
 export class Entry {
     public nom : string = ""
     public rct : Rect = rect_zeros()
-    public content? : HTMLIFrameElement
+    public title? : HTMLDivElement
+    public content? : HTMLDivElement
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this)
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
         this.nom = nom
+
+        var div1 = document.createElement('div')
+        document.body.appendChild(div1)
+        div1.classList.add('entry')
+        div1.innerHTML = 'Foo Foo Foo Foo Foo Foo FooFoo'
+        this.content = div1
+
+        var div2 = document.createElement('div')
+        document.body.appendChild(div2)
+        div2.classList.add('entry-title')
+        div2.classList.add('unselectable')
+        div2.innerHTML = nom
+        this.title = div2
+
         this.updateRect(rct.xy, rct.wh)
-        if (contentId.length) {
-            //...
-        }
     }
 
     draw() {
@@ -80,17 +92,56 @@ export class Entry {
         return false
     }
 
+    updateContent() {
+        const dc = DC.inst
+        if (this.content) {
+            const gxy = dc.globalPt(this.rct.xy.addPt(ones().coeff(CORNER_R))).coeff(1 / dc.scale)
+            const gwh = this.rct.wh.subPt(ones().coeff(CORNER_R * 2))
+            this.content.style.left = gxy.x + 'px'
+            this.content.style.top = gxy.y + 'px'
+            this.content.style.width = gwh.x + 'px'
+            this.content.style.height = gwh.y + 'px'
+            this.content.style.zoom = dc.scale + ''
+        }
+        if (this.title) {
+            const gxy = dc.globalPt(this.rct.xy.subPt(pt(0, 2).coeff(CORNER_R))).coeff(1 / dc.scale)
+            const gwh = pt(this.rct.wh.x, TITLE_H)
+            this.title.style.left = gxy.x + 'px'
+            this.title.style.top = gxy.y + 'px'
+            this.title.style.width = gwh.x + 'px'
+            this.title.style.height = gwh.y + 'px'
+            this.title.style.zoom = dc.scale + ''
+        }
+    }
+
     updateRect(xy: Point2d = this.rct.xy, wh: Point2d = this.rct.wh) {
         const dc = DC.inst
         this.rct.xy = xy
         this.rct.wh = wh
         this.sizeCorner.xy = this.rct.xy.addPt(this.rct.wh.subPt(ones().coeff(CORNER_R)))
+
+        this.updateContent()        
     }
 
     grabPointMoved(gp : GrabPoint) {
         const dc = DC.inst
         if (gp == this.sizeCorner) {
             this.updateRect(this.rct.xy, gp.xy.subPt(this.rct.xy).max(ones().coeff(MIN_SZ)).addPt(ones().coeff(CORNER_R)))
+        }
+    }
+
+    setClass(name: string, on: boolean) {
+        if (this.content) {
+            if (on)
+                this.content.classList.add(name)
+            else 
+                this.content.classList.remove(name)
+        }
+        if (this.title && name != 'unselectable') {
+            if (on)
+                this.title.classList.add(name)
+            else 
+                this.title.classList.remove(name)
         }
     }
 }

@@ -60,7 +60,6 @@ function drag() {
         else if (dc.grabObj instanceof GrabPoint)
             (dc.grabObj as GrabPoint).moveTo(dc.localPt(dc.mouse))
     }
-    dc.off = off.addPt(curOff)
 }
 
 function initInputEvents() {
@@ -126,6 +125,9 @@ function initInputEvents() {
                         const idx = entries.indexOf(dc.hoverObj)
                         entries.splice(idx, 1)
                         entries.push(dc.hoverObj)
+                        dc.focusObj = dc.hoverObj
+                        entries.forEach(e => {e.setClass('unselectable', true)})
+                        dc.focusObj.setClass('unselectable', false)
                     }
                     if (dc.grabbable) {
                         dc.grabObj = dc.hoverObj
@@ -146,9 +148,12 @@ function initInputEvents() {
             movedThisMouseDownTime = lastMousePos.subPt(lastMouseDownPos).norm() > 10
 
             if (mouseIsDown) {
-                if (panning)
-                    curOff = lastMousePos.subPt(lastMouseDownPos)            
                 drag()                
+                if (panning) {
+                    curOff = lastMousePos.subPt(lastMouseDownPos)
+                    dc.off = off.addPt(curOff)
+                    updateContent()
+                }
             }
         })
         window.addEventListener('mouseup', function(e) {
@@ -169,10 +174,13 @@ function initInputEvents() {
             EventManager.inst.notify("wheel", pt(e.deltaX, -e.deltaY))
 
             const newScale = dc.scale - 0.01 * e.deltaY * dc.scale / 10.0;
-            off = off.subPt(((lastMousePos.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
-            dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
-            dc.scale = newScale
-            drag()
+            if (newScale != dc.scale) {
+                off = off.subPt(((lastMousePos.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
+                dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
+                dc.scale = newScale
+                drag()
+                updateContent()
+            }
         })
         jQuery(document).on("keydown", function(e) {
             if (e.ctrlKey && e.key == 'c') {
@@ -184,6 +192,24 @@ function initInputEvents() {
             }
         })
     }
+}
+
+function resetSelection() {
+    if (window.getSelection) {
+        const ws = window.getSelection()
+        if (ws) {
+            if (ws.empty)
+                ws.empty()
+            else if (ws.removeAllRanges)
+                ws.removeAllRanges()
+        }
+    }
+}
+
+function updateContent() {
+    entries.forEach(e => {
+        e.updateContent()
+    });
 }
 
 function render() {
@@ -202,8 +228,13 @@ function render() {
         $('body').addClass(dc.grabObj ? 'grabbed' : 'grabbable')
     else
         $('body').removeClass('grabbable')
-    if (!dc.grabObj)
+    if (dc.grabObj) {
+        resetSelection()
+        $('body').addClass('unselectable')
+    } else {
         $('body').removeClass('grabbed')
+        $('body').removeClass('unselectable')
+    }
 }
 
 $(window).on('load', function () {

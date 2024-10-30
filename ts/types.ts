@@ -32,6 +32,7 @@ export class DrawContext {
     public grabbable: boolean = false
     public grabObj: any = null
     public grabOff: Point2d = zeros()
+    public focusObj: any = null
 
     localPt(p : Point2d) {
         return p.subPt(this.off).coeff(1 / this.scale)

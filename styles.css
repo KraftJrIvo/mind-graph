@@ -1,3 +1,8 @@
+* { 
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -moz-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
 html {
     margin: 0;
     padding: 0;
@@ -12,15 +17,6 @@ body {
     height: 100%;
     overflow: hidden;
     background-color: black;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-#canvas-container {
-    width: 100%;
-    text-align: center;
 }
  
 canvas {
@@ -31,12 +27,15 @@ canvas {
     right: 0px;
 }
 
-.clickable {
-    cursor: pointer;
+.unselectable {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-.selectable {
-    cursor: text;
+.clickable {
+    cursor: pointer;
 }
 
 .grabbable {
@@ -47,8 +46,11 @@ canvas {
     cursor: grabbing;
 }
 
-* { 
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-    -moz-tap-highlight-color: rgba(0, 0, 0, 0);
+.entry {
+    position: fixed;
 }
-  
+
+.entry-title {
+    position: fixed;
+    text-align: center;
+}
