@@ -1,0 +1,54 @@
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: black;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#canvas-container {
+    width: 100%;
+    text-align: center;
+}
+ 
+canvas {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    left: 0px;
+    right: 0px;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.selectable {
+    cursor: text;
+}
+
+.grabbable {
+    cursor: grab;
+}
+
+.grabbed {
+    cursor: grabbing;
+}
+
+* { 
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -moz-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+  

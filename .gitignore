@@ -1,0 +1,21 @@
+# emacs
+.[#]*[#]
+\#*\#
+.\#*
+
+# js dirs
+js/*
+js_/*
+
+# nodejs dirs
+node_modules/
+
+# out
+out
+gen/out
+
+# index
+index.html
+
+# tmp
+tmp
