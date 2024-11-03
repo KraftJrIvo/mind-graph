@@ -36,42 +36,23 @@ export class GrabPoint {
 export class Entry {
     public nom : string = ""
     public rct : Rect = rect_zeros()
-    public title? : HTMLDivElement
     public content? : HTMLDivElement
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this)
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
         this.nom = nom
 
-        var div1 = document.createElement('div')
-        document.body.appendChild(div1)
-        div1.classList.add('entry')
-        div1.innerHTML = 'Foo Foo Foo Foo Foo Foo FooFoo'
-        this.content = div1
+        const dc = DC.inst
 
-        var div2 = document.createElement('div')
-        document.body.appendChild(div2)
-        div2.classList.add('entry-title')
-        div2.classList.add('unselectable')
-        div2.innerHTML = nom
-        this.title = div2
+        var div = document.createElement('div')
+        document.body.appendChild(div)                
+        div.classList.add('entry')
+        const testText = 'Foo Foo Foo Foo Foo Foo FooFoo'
+        div.innerHTML = `<div class="entry-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">${nom}</div><div class="entry-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">${testText}</div>`
+        div.style.borderRadius = CORNER_R + 'px'
+        this.content = div
 
         this.updateRect(rct.xy, rct.wh)
-    }
-
-    draw() {
-        const dc = DC.inst
-        const grect = dc.globalRect(this.rct)
-        const cornerRsc = CORNER_R * dc.scale
-        const titleHsc = TITLE_H * dc.scale
-        dc.ctx.fillStyle = dc.thm.main;
-        dc.ctx.beginPath();
-        dc.ctx.roundRect(grect.xy.x, grect.xy.y, grect.wh.x, grect.wh.y, [cornerRsc]);
-        dc.ctx.fill();
-        dc.ctx.fillStyle = dc.thm.edge;
-        dc.ctx.beginPath();
-        dc.ctx.roundRect(grect.xy.x, grect.xy.y - titleHsc, grect.wh.x, titleHsc, [cornerRsc]);
-        dc.ctx.fill();
     }
 
     checkHover() {
@@ -92,27 +73,22 @@ export class Entry {
         return false
     }
 
+    setZ(z: number) {
+        if (this.content) {
+            this.content.style.zIndex = ''+z
+        }
+    }
+
     updateContent() {
         const dc = DC.inst
         if (this.content) {
-            const gxy = dc.globalPt(this.rct.xy.addPt(ones().coeff(CORNER_R)))
-            const gwh = this.rct.wh.subPt(ones().coeff(CORNER_R * 2))
+            const gxy = dc.globalPt(this.rct.xy.subPt(pt(0, 1).coeff(TITLE_H)))
             this.content.style.left = gxy.x + 'px'
             this.content.style.top = gxy.y + 'px'
-            this.content.style.width = gwh.x + 'px'
-            this.content.style.height = gwh.y + 'px'
+            this.content.style.width = this.rct.wh.x + 'px'
+            this.content.style.height = this.rct.wh.y + 'px'
             this.content.style.transform = 'scale(' + dc.scale + ')'
             this.content.style.transformOrigin = 'left top'
-        }
-        if (this.title) {
-            const gxy = dc.globalPt(this.rct.xy.subPt(pt(0, 2).coeff(CORNER_R)))
-            const gwh = pt(this.rct.wh.x, TITLE_H)
-            this.title.style.left = gxy.x + 'px'
-            this.title.style.top = gxy.y + 'px'
-            this.title.style.width = gwh.x + 'px'
-            this.title.style.height = gwh.y + 'px'
-            this.title.style.transform = 'scale(' + dc.scale + ')'
-            this.title.style.transformOrigin = 'left top'
         }
     }
 
@@ -138,12 +114,6 @@ export class Entry {
                 this.content.classList.add(name)
             else 
                 this.content.classList.remove(name)
-        }
-        if (this.title && name != 'unselectable') {
-            if (on)
-                this.title.classList.add(name)
-            else 
-                this.title.classList.remove(name)
         }
     }
 }

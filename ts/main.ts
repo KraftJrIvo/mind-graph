@@ -66,9 +66,13 @@ function focusOnEntry(e: Entry) {
     const dc = DC.inst
     const idx = entries.indexOf(e)
     entries.splice(idx, 1)
-    entries.push(e)
+    entries.unshift(e)
     dc.focusObj = e
-    entries.forEach(e => {e.setClass('unselectable', true)})
+    for (let i = 0; i < entries.length; ++i) {
+        const e = entries[i]
+        e.setClass('unselectable', true)
+        e.setZ(entries.length - i);
+    }
     dc.focusObj.setClass('unselectable', false)
 }
 
@@ -227,8 +231,8 @@ function render() {
 
     grid.draw()    
     entries.forEach(e => {
-        e.draw()
-        e.checkHover()
+        if (!dc.hoverObj)
+            e.checkHover()
     });
     requestAnimationFrame(render)
     
