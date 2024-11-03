@@ -62,6 +62,16 @@ function drag() {
     }
 }
 
+function focusOnEntry(e: Entry) {
+    const dc = DC.inst
+    const idx = entries.indexOf(e)
+    entries.splice(idx, 1)
+    entries.push(e)
+    dc.focusObj = e
+    entries.forEach(e => {e.setClass('unselectable', true)})
+    dc.focusObj.setClass('unselectable', false)
+}
+
 function initInputEvents() {
     const dc = DC.inst
 
@@ -121,14 +131,12 @@ function initInputEvents() {
                 mouseIsDown = true
                 movedThisMouseDownTime = false
                 if (dc.hoverObj) {
-                    if (dc.hoverObj instanceof Entry) {
-                        const idx = entries.indexOf(dc.hoverObj)
-                        entries.splice(idx, 1)
-                        entries.push(dc.hoverObj)
-                        dc.focusObj = dc.hoverObj
-                        entries.forEach(e => {e.setClass('unselectable', true)})
-                        dc.focusObj.setClass('unselectable', false)
-                    }
+                    if (dc.hoverObj instanceof Entry)
+                        focusOnEntry(dc.hoverObj);
+                    else if (dc.hoverObj instanceof GrabPoint)
+                        if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Entry)
+                            focusOnEntry(dc.hoverObj.parent);
+                    
                     if (dc.grabbable) {
                         dc.grabObj = dc.hoverObj
                         dc.grabOff = dc.hoverOff

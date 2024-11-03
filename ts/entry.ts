@@ -95,22 +95,24 @@ export class Entry {
     updateContent() {
         const dc = DC.inst
         if (this.content) {
-            const gxy = dc.globalPt(this.rct.xy.addPt(ones().coeff(CORNER_R))).coeff(1 / dc.scale)
+            const gxy = dc.globalPt(this.rct.xy.addPt(ones().coeff(CORNER_R)))
             const gwh = this.rct.wh.subPt(ones().coeff(CORNER_R * 2))
             this.content.style.left = gxy.x + 'px'
             this.content.style.top = gxy.y + 'px'
             this.content.style.width = gwh.x + 'px'
             this.content.style.height = gwh.y + 'px'
-            this.content.style.zoom = dc.scale + ''
+            this.content.style.transform = 'scale(' + dc.scale + ')'
+            this.content.style.transformOrigin = 'left top'
         }
         if (this.title) {
-            const gxy = dc.globalPt(this.rct.xy.subPt(pt(0, 2).coeff(CORNER_R))).coeff(1 / dc.scale)
+            const gxy = dc.globalPt(this.rct.xy.subPt(pt(0, 2).coeff(CORNER_R)))
             const gwh = pt(this.rct.wh.x, TITLE_H)
             this.title.style.left = gxy.x + 'px'
             this.title.style.top = gxy.y + 'px'
             this.title.style.width = gwh.x + 'px'
             this.title.style.height = gwh.y + 'px'
-            this.title.style.zoom = dc.scale + ''
+            this.title.style.transform = 'scale(' + dc.scale + ')'
+            this.title.style.transformOrigin = 'left top'
         }
     }
 
