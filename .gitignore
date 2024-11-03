@@ -11,7 +11,8 @@ js_/*
 node_modules/
 
 # out
-out
+out/*
+!out/index.js
 gen/out
 
 # index
