@@ -9,11 +9,15 @@ export class GrabPoint {
     public xy : Point2d = zeros()
     public r : number = 0
     public parent : any = null
+    public grabCursor : string = 'grab'
+    public hoverCursor : string = 'grabbed'
 
-    constructor(pos : Point2d, radius : number, parent : any = null) {
+    constructor(pos : Point2d, radius : number, parent : any = null, hoverCursor: string = 'grab', grabCursor: string = 'grabbed') {
         this.xy = pos
         this.r = radius
         this.parent = parent
+        this.hoverCursor = hoverCursor
+        this.grabCursor = grabCursor
     }
 
     checkHover() {
@@ -22,7 +26,10 @@ export class GrabPoint {
         const hover = gpos.subPt(dc.mouse).norm() < this.r * dc.scale
         if (hover) {
             dc.hoverObj = this
+            dc.hoverOff = gpos.subPt(dc.mouse).coeff(1 / dc.scale)
             dc.grabbable = true
+            dc.grabCursor = this.grabCursor
+            dc.hoverCursor = this.hoverCursor
         }
         return hover
     }
@@ -37,7 +44,7 @@ export class Entry {
     public nom : string = ""
     public rct : Rect = rect_zeros()
     public content? : HTMLDivElement
-    public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this)
+    public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
         this.nom = nom
@@ -68,6 +75,12 @@ export class Entry {
             dc.hoverObj = this
             dc.hoverOff = grect.xy.subPt(dc.mouse).coeff(1 / dc.scale)
             dc.grabbable = trectC
+            if (trectC) {
+                dc.hoverCursor = 'grab'
+                dc.grabCursor = 'grabbing'
+            } else {
+                dc.hoverCursor = ''
+            }
             return true
         }
         return false

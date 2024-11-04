@@ -34,18 +34,6 @@ canvas {
     user-select: none;
 }
 
-.clickable {
-    cursor: pointer;
-}
-
-.grabbable {
-    cursor: grab;
-}
-
-.grabbed {
-    cursor: grabbing;
-}
-
 .entry {
     position: fixed;
 }

@@ -55,10 +55,11 @@ function initDeviceStatus() {
 function drag() {
     const dc = DC.inst
     if (dc.grabObj) {
+        const to = dc.localPt(dc.mouse).addPt(dc.grabOff)
         if (dc.grabObj instanceof Entry)
-            (dc.grabObj as Entry).updateRect(dc.localPt(dc.mouse).addPt(dc.grabOff))
+            (dc.grabObj as Entry).updateRect(to)
         else if (dc.grabObj instanceof GrabPoint)
-            (dc.grabObj as GrabPoint).moveTo(dc.localPt(dc.mouse))
+            (dc.grabObj as GrabPoint).moveTo(to)
     }
 }
 
@@ -236,15 +237,15 @@ function render() {
     });
     requestAnimationFrame(render)
     
-    if (dc.grabbable)
-        $('body').addClass(dc.grabObj ? 'grabbed' : 'grabbable')
+    if (dc.hoverObj || dc.grabObj)
+        $('body').css('cursor', dc.grabObj ? dc.grabCursor : dc.hoverCursor)
     else
-        $('body').removeClass('grabbable')
+        $('body').css('cursor', '')
+
     if (dc.grabObj) {
         resetSelection()
         $('body').addClass('unselectable')
     } else {
-        $('body').removeClass('grabbed')
         $('body').removeClass('unselectable')
     }
 }
