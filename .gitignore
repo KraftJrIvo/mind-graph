@@ -3,10 +3,6 @@
 \#*\#
 .\#*
 
-# js dirs
-js/*
-js_/*
-
 # nodejs dirs
 node_modules/
 
