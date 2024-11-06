@@ -1,6 +1,8 @@
 import {ones, Point2d, pt, rect, Rect, rect_zeros, zeros} from "./math"
 import { DC } from "./types"
 
+import { typesetMathJax } from "../js/mathjax"
+
 const CORNER_R = 10
 const TITLE_H = 20
 const MIN_SZ = 25
@@ -40,7 +42,7 @@ export class GrabPoint {
     }
 }
 
-export class Entry {
+export class Node {
     public nom : string = ""
     public rct : Rect = rect_zeros()
     public content? : HTMLDivElement
@@ -51,13 +53,27 @@ export class Entry {
 
         const dc = DC.inst
 
-        var div = document.createElement('div')
-        document.body.appendChild(div)                
-        div.classList.add('entry')
         const testText = 'Foo Foo Foo Foo Foo Foo FooFoo'
-        div.innerHTML = `<div class="entry-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">${nom}</div><div class="entry-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">${testText}</div>`
+        const html = `
+            <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">${nom}</div>
+            <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
+                <div id="content">
+                    <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
+                    <div class="formula">
+                        [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
+                    </div>
+                </div>
+            </div>
+            `
+        
+        var div = document.createElement('div')
+        document.body.appendChild(div)              
+        div.classList.add('node')
+        div.classList.add('math')
+        div.innerHTML = html
         div.style.borderRadius = CORNER_R + 'px'
         this.content = div
+        typesetMathJax(div)
 
         this.updateRect(rct.xy, rct.wh)
     }

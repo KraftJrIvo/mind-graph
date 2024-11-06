@@ -1,4 +1,4 @@
-import { Entry, GrabPoint } from "./entry"
+import { Node, GrabPoint } from "./node"
 import { EventManager } from "./evtman"
 import { Grid } from "./grid"
 import { pt, rect, zeros } from "./math"
@@ -21,7 +21,7 @@ let off = zeros()
 let curOff = zeros()
 
 let grid = new Grid()
-let entries = new Array<Entry>()
+let nodes = new Array<Node>()
 
 function init() {
     updateCanvas()
@@ -30,9 +30,9 @@ function init() {
     initDeviceStatus()
     initInputEvents()
 
-    entries.push(new Entry("haha test", rect(-150, -50, 300, 100)))
-    entries.push(new Entry("haha test 2", rect(200, -50, 100, 150)))
-    entries.push(new Entry("haha test 3", rect(-150, 100, 200, 200)))
+    nodes.push(new Node("haha test", rect(-150, -50, 300, 100)))
+    nodes.push(new Node("haha test 2", rect(200, -50, 100, 150)))
+    nodes.push(new Node("haha test 3", rect(-150, 100, 200, 200)))
 
     render()
 }
@@ -56,23 +56,23 @@ function drag() {
     const dc = DC.inst
     if (dc.grabObj) {
         const to = dc.localPt(dc.mouse).addPt(dc.grabOff)
-        if (dc.grabObj instanceof Entry)
-            (dc.grabObj as Entry).updateRect(to)
+        if (dc.grabObj instanceof Node)
+            (dc.grabObj as Node).updateRect(to)
         else if (dc.grabObj instanceof GrabPoint)
             (dc.grabObj as GrabPoint).moveTo(to)
     }
 }
 
-function focusOnEntry(e: Entry) {
+function focusOnNode(e: Node) {
     const dc = DC.inst
-    const idx = entries.indexOf(e)
-    entries.splice(idx, 1)
-    entries.unshift(e)
+    const idx = nodes.indexOf(e)
+    nodes.splice(idx, 1)
+    nodes.unshift(e)
     dc.focusObj = e
-    for (let i = 0; i < entries.length; ++i) {
-        const e = entries[i]
-        e.setClass('unselectable', true)
-        e.setZ(entries.length - i);
+    for (let i = 0; i < nodes.length; ++i) {
+        const n = nodes[i]
+        n.setClass('unselectable', true)
+        n.setZ(nodes.length - i);
     }
     dc.focusObj.setClass('unselectable', false)
 }
@@ -136,11 +136,11 @@ function initInputEvents() {
                 mouseIsDown = true
                 movedThisMouseDownTime = false
                 if (dc.hoverObj) {
-                    if (dc.hoverObj instanceof Entry)
-                        focusOnEntry(dc.hoverObj);
+                    if (dc.hoverObj instanceof Node)
+                        focusOnNode(dc.hoverObj);
                     else if (dc.hoverObj instanceof GrabPoint)
-                        if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Entry)
-                            focusOnEntry(dc.hoverObj.parent);
+                        if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
+                            focusOnNode(dc.hoverObj.parent);
                     
                     if (dc.grabbable) {
                         dc.grabObj = dc.hoverObj
@@ -220,7 +220,7 @@ function resetSelection() {
 }
 
 function updateContent() {
-    entries.forEach(e => {
+    nodes.forEach(e => {
         e.updateContent()
     });
 }
@@ -231,7 +231,7 @@ function render() {
     dc.grabbable = false
 
     grid.draw()    
-    entries.forEach(e => {
+    nodes.forEach(e => {
         if (!dc.hoverObj)
             e.checkHover()
     });

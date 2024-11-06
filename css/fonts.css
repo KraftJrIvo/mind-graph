@@ -1,0 +1,69 @@
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-r.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-ri.ttf") format("truetype");
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-b.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-bi.ttf") format("truetype");
+    font-weight: bold;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-l.ttf") format("truetype");
+    font-weight: lighter;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "whitney";
+    src: url("https://mind-book.fun/books/main/fonts/whitney/whitney-li.ttf") format("truetype");
+    font-weight: lighter;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: "ebgaramond";
+    src: url("https://mind-book.fun/books/main/fonts/ebgaramond/EBGaramond-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ebgaramond";
+    src: url("https://mind-book.fun/books/main/fonts/ebgaramond/EBGaramond-Italic.ttf") format("truetype");
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: "ebgaramond";
+    src: url("https://mind-book.fun/books/main/fonts/ebgaramond/EBGaramond-Bold.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ebgaramond";
+    src: url("https://mind-book.fun/books/main/fonts/ebgaramond/EBGaramond-BoldItalic.ttf") format("truetype");
+    font-weight: bold;
+    font-style: italic;
+}
