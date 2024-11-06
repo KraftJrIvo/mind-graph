@@ -53,24 +53,49 @@ export class Node {
 
         const dc = DC.inst
 
-        const testText = 'Foo Foo Foo Foo Foo Foo FooFoo'
-        const html = `
-            <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">${nom}</div>
+        const htmlMath = `
+            <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Математика</div>
             <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
                 <div id="content">
-                    <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
-                    <div class="formula">
-                        [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
-                    </div>
+                    Конспекты:<br/>
+                    <div align="center"><span class="defined">Теория множеств</span></div>
+                    <div align="center"><span class="defined">Алгебра</span></div>
+                    <br/>
+                    <img class="viewable" src="https://kraftjrivo.github.io/mind-graph/res/img/numbers.png"/>
                 </div>
             </div>
             `
+
+        const htmlSets = `
+        <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Теория множеств</div>
+        <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
+            <div id="content">
+                <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
+                <div class="formula">
+                    [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
+                </div>
+            </div>
+        </div>
+        `
+
+        const htmlAlg = `
+        <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Алгебра</div>
+        <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
+            <div id="content">
+                <p><span class="definition">Алгебраической системой (или структурой)</span> называют непустое <span class="defined">множество</span>, на котором заданы некоторые <span class="defined">операции</span> и <span class="defined">отношения</span></p>
+                <p><span class="defined">Операция "?"</span>, заданная на множестве [S], называется <span class="definition">бинарной</span>, если она ставит в соответсвие <span class="stressed">двум</span> эл-там мн-ва [S] один эл-т оттуда же:</p>
+                <div class="formula">
+                    [(S;?) : \\; S×S→S]
+                </div>
+            </div>
+        </div>
+        `
         
         var div = document.createElement('div')
         document.body.appendChild(div)              
         div.classList.add('node')
         div.classList.add('math')
-        div.innerHTML = html
+        div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg
         div.style.borderRadius = CORNER_R + 'px'
         this.content = div
         typesetMathJax(div)

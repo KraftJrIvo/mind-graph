@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=4.0, minimum-scale=1.0, user-scalable=yes" />
     <link rel="stylesheet" href="css/fonts.css" type="text/css">
     <link rel="stylesheet" href="css/styles.css" type="text/css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <title>MINDGRAPH</title>
     <script src="deps/jquery-3.6.0.js"></script>
     <script src="js/load-mathjax.js" async></script>

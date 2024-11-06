@@ -30,9 +30,9 @@ function init() {
     initDeviceStatus()
     initInputEvents()
 
-    nodes.push(new Node("haha test", rect(-150, -50, 300, 100)))
-    nodes.push(new Node("haha test 2", rect(200, -50, 100, 150)))
-    nodes.push(new Node("haha test 3", rect(-150, 100, 200, 200)))
+    nodes.push(new Node("math", rect(-150, -50, 300, 100)))
+    nodes.push(new Node("sets", rect(200, -50, 100, 150)))
+    nodes.push(new Node("alg", rect(-150, 100, 200, 200)))
 
     render()
 }
