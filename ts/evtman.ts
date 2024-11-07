@@ -8,7 +8,7 @@ export class EventManager {
     private _clbks: ClbkDict = {}
     
     private _mousepos: Point2d = zeros() 
-    private _enabled = true
+    public enabled = true
 
     public shift = false
     
@@ -16,11 +16,11 @@ export class EventManager {
     private constructor() { }
 
     setEnabled(on: boolean) {
-        this._enabled = on
+        this.enabled = on
     }
 
     notify(evtnom: string, info: any) {
-        if (this._enabled) {
+        if (this.enabled) {
             if (evtnom in this._clbks) {
                 const clbks = this._clbks[evtnom]
                 for (let clbk of clbks) {

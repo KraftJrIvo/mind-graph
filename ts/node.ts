@@ -1,7 +1,10 @@
 import {ones, Point2d, pt, rect, Rect, rect_zeros, zeros} from "./math"
-import { DC } from "./types"
+import { clbkself, DC } from "./types"
 
 import { typesetMathJax } from "../js/mathjax"
+import { EventManager } from "./evtman"
+
+import OpenSeadragon from "openseadragon"
 
 const CORNER_R = 10
 const TITLE_H = 20
@@ -42,11 +45,96 @@ export class GrabPoint {
     }
 }
 
+function getHoveredImage() : HTMLImageElement | null {
+    var hoveredElements = $(':hover'),
+        // the last element is the event source
+        hoveredElement  = hoveredElements.last();
+
+    if (hoveredElement.prop("tagName") === 'IMG') {
+        return hoveredElement.get(0) as HTMLImageElement;
+    }
+    return null
+}
+
+function viewFullScreen(imgpth: string) {
+    
+    jQuery('<div>', {
+        id: 'openseadragon1',
+        style: 'width:' + DC.inst.cv.width + 'px;height:' + DC.inst.cv.height + 'px'
+    }).appendTo('body');
+
+    let viewer = OpenSeadragon({
+        id: "openseadragon1",
+        prefixUrl: 'res/',
+        showZoomControl: false,
+        showHomeControl: false,
+        showFullPageControl: false
+    });
+    viewer.setMouseNavEnabled(false)
+    
+    viewer.addHandler('open', () => {
+        viewer.clearControls()
+        let clsBtn = new OpenSeadragon.Button({
+          tooltip: 'Close',
+          srcRest: "res/x.png",
+          srcGroup: "res/x.png",
+          srcHover: "res/x.png",
+          srcDown: "res/x.png",
+          onClick: async () => {
+            viewer.setFullPage(false)
+          }
+        });
+        let dwldBtn = new OpenSeadragon.Button({
+            tooltip: 'Download',
+            srcRest: "res/download.png",
+            srcGroup: "res/download.png",
+            srcHover: "res/download.png",
+            srcDown: "res/download.png",
+            onClick: async () => {
+              let imageURL = imgpth
+              const image = await fetch(imageURL)
+              const imageBlog = await image.blob()
+              imageURL = URL.createObjectURL(imageBlog)
+             jQuery('<a>', {
+                  id: 'download_img',
+                  href: imageURL,
+                  download: imgpth
+              }).appendTo('body');
+              document.getElementById('download_img')?.click()
+              jQuery('#download_img').remove()
+            }
+          });
+          viewer.addControl(clsBtn.element, { anchor: OpenSeadragon.ControlAnchor.TOP_LEFT });
+          viewer.addControl(dwldBtn.element, { anchor: OpenSeadragon.ControlAnchor.TOP_LEFT });
+    });
+
+    viewer.open({
+        type: "image",
+        url:  imgpth,
+    })
+    viewer.setMouseNavEnabled(true)
+    viewer.viewport.goHome(true)
+    viewer.viewport.applyConstraints(true)
+    viewer.viewport.zoomTo(1.0, undefined, true)
+    viewer.setFullPage(true)        
+    EventManager.inst.setEnabled(false)
+    jQuery("body").removeClass()
+    viewer.addOnceHandler("full-page", ()=>{
+        viewer.setMouseNavEnabled(false)
+        jQuery('#openseadragon1').remove()
+        setTimeout(() => {
+            EventManager.inst.setEnabled(true)
+        }, 100)    
+    })
+}
+
 export class Node {
     public nom : string = ""
     public rct : Rect = rect_zeros()
     public content? : HTMLDivElement
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
+
+    private _evt_click_idx: number
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
         this.nom = nom
@@ -100,10 +188,12 @@ export class Node {
         this.content = div
         typesetMathJax(div)
 
+        this._evt_click_idx = EventManager.inst.subscribe("click", clbkself( this.clbk_click, this))
+
         this.updateRect(rct.xy, rct.wh)
     }
 
-    checkHover() {
+    checkHover(click = false) {
         if (this.sizeCorner.checkHover())
             return true
         const dc = DC.inst
@@ -121,6 +211,15 @@ export class Node {
                 dc.grabCursor = 'grabbing'
             } else {
                 dc.hoverCursor = ''
+            }
+            if (grectC && !trectC) {
+                const img = getHoveredImage()
+                if (img && img.classList.contains('viewable')) {
+                    dc.hoverCursor = 'pointer'
+                    if (click) {
+                        viewFullScreen(img.currentSrc)
+                    }
+                }
             }
             return true
         }
@@ -169,5 +268,9 @@ export class Node {
             else 
                 this.content.classList.remove(name)
         }
+    }
+
+    clbk_click(pos : Point2d) {
+        this.checkHover(true)
     }
 }

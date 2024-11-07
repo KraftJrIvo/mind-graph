@@ -30,6 +30,14 @@ canvas {
     right: 0px;
 }
 
+img {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    width: 100%;
+}
+
 .unselectable {
     -webkit-user-select: none;
     -moz-user-select: none;

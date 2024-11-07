@@ -127,74 +127,83 @@ function initInputEvents() {
                 e.preventDefault()
                 EventManager.inst.notify("wclick", pt(e.clientX, e.clientY))
             } else {
-                lastMouseDownTime = getCurMillis()
                 const point = pt(e.clientX, e.clientY)
-                dc.mouse = point
-                dc.mouseDown = true
                 EventManager.inst.notify("mousedown", point)
                 EventManager.inst.setMousePos(point)
-                mouseIsDown = true
-                movedThisMouseDownTime = false
-                if (dc.hoverObj) {
-                    if (dc.hoverObj instanceof Node)
-                        focusOnNode(dc.hoverObj);
-                    else if (dc.hoverObj instanceof GrabPoint)
-                        if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
-                            focusOnNode(dc.hoverObj.parent);
-                    
-                    if (dc.grabbable) {
-                        dc.grabObj = dc.hoverObj
-                        dc.grabOff = dc.hoverOff
+                
+                if (EventManager.inst.enabled) {
+                    lastMouseDownTime = getCurMillis()
+                    dc.mouse = point
+                    dc.mouseDown = true
+                    mouseIsDown = true
+                    movedThisMouseDownTime = false
+                    if (dc.hoverObj) {
+                        if (dc.hoverObj instanceof Node)
+                            focusOnNode(dc.hoverObj);
+                        else if (dc.hoverObj instanceof GrabPoint)
+                            if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
+                                focusOnNode(dc.hoverObj.parent);
+                        
+                        if (dc.grabbable) {
+                            dc.grabObj = dc.hoverObj
+                            dc.grabOff = dc.hoverOff
+                        }
+                        panning = false
+                    } else {
+                        lastMouseDownPos = point
+                        panning = true
                     }
-                    panning = false
-                } else {
-                    lastMouseDownPos = point
-                    panning = true
                 }
             }
         })
         window.addEventListener('mousemove', function(e) {
             lastMousePos = pt(e.clientX, e.clientY)
-            dc.mouse = lastMousePos
             EventManager.inst.notify("mousemove", lastMousePos)
             EventManager.inst.setMousePos(lastMousePos)
-            movedThisMouseDownTime = lastMousePos.subPt(lastMouseDownPos).norm() > 10
-
-            if (mouseIsDown) {
-                drag()                
-                if (panning) {
-                    curOff = lastMousePos.subPt(lastMouseDownPos)
-                    dc.off = off.addPt(curOff)
-                    updateContent()
+            
+            if (EventManager.inst.enabled) {
+                dc.mouse = lastMousePos
+                movedThisMouseDownTime = lastMousePos.subPt(lastMouseDownPos).norm() > 10
+                if (mouseIsDown) {
+                    drag()                
+                    if (panning) {
+                        curOff = lastMousePos.subPt(lastMouseDownPos)
+                        dc.off = off.addPt(curOff)
+                        updateContent()
+                    }
                 }
             }
         })
         window.addEventListener('mouseup', function(e) {
             EventManager.inst.notify("mouseup", pt(e.clientX, e.clientY))
-            mouseIsDown = false
-            dc.mouseDown = false
-            
-            if (dc.grabObj) {
-                dc.grabObj = null
-            } else {
-                off = off.addPt(curOff);
-            }
-            curOff = zeros()
 
+            if (EventManager.inst.enabled) {
+                mouseIsDown = false
+                dc.mouseDown = false            
+                if (dc.grabObj) {
+                    dc.grabObj = null
+                } else {
+                    off = off.addPt(curOff);
+                }
+                curOff = zeros()
+            }
         })
         window.addEventListener('wheel', function(e) {
-            lastMousePos = pt(e.clientX, e.clientY)
             EventManager.inst.notify("wheel", pt(e.deltaX, -e.deltaY))
-
-            const newScale = dc.scale - 0.01 * e.deltaY * dc.scale / 10.0;
-            if (newScale != dc.scale) {
-                off = off.subPt(((lastMousePos.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
-                dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
-                dc.scale = newScale
-                drag()
-                updateContent()
+            
+            if (EventManager.inst.enabled) {
+                lastMousePos = pt(e.clientX, e.clientY)
+                const newScale = dc.scale - 0.01 * e.deltaY * dc.scale / 10.0;
+                if (newScale != dc.scale) {
+                    off = off.subPt(((lastMousePos.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
+                    dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
+                    dc.scale = newScale
+                    drag()
+                    updateContent()
+                }
             }
         })
+        window.ondragstart = function() {return false}
         jQuery(document).on("keydown", function(e) {
             if (e.ctrlKey && e.key == 'c') {
                 EventManager.inst.notify("copy", null)
