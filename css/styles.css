@@ -4,6 +4,7 @@
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
+    color: white;
 }
 
 html {
@@ -36,6 +37,10 @@ img {
     -moz-user-drag: none;
     -o-user-drag: none;
     width: 100%;
+}
+
+img .viewable {    
+    border-radius: 10px;
 }
 
 .unselectable {
