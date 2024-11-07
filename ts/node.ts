@@ -5,6 +5,7 @@ import { typesetMathJax } from "../js/mathjax"
 import { EventManager } from "./evtman"
 
 import OpenSeadragon from "openseadragon"
+import { getHoveredImage, viewFullScreen } from "./util"
 
 const CORNER_R = 10
 const TITLE_H = 20
@@ -43,89 +44,6 @@ export class GrabPoint {
         this.xy = to
         this.parent.grabPointMoved(this)
     }
-}
-
-function getHoveredImage() : HTMLImageElement | null {
-    var hoveredElements = $(':hover'),
-        // the last element is the event source
-        hoveredElement  = hoveredElements.last();
-
-    if (hoveredElement.prop("tagName") === 'IMG') {
-        return hoveredElement.get(0) as HTMLImageElement;
-    }
-    return null
-}
-
-function viewFullScreen(imgpth: string) {
-    
-    jQuery('<div>', {
-        id: 'openseadragon1',
-        style: 'width:' + DC.inst.cv.width + 'px;height:' + DC.inst.cv.height + 'px'
-    }).appendTo('body');
-
-    let viewer = OpenSeadragon({
-        id: "openseadragon1",
-        prefixUrl: 'res/',
-        showZoomControl: false,
-        showHomeControl: false,
-        showFullPageControl: false
-    });
-    viewer.setMouseNavEnabled(false)
-    
-    viewer.addHandler('open', () => {
-        viewer.clearControls()
-        let clsBtn = new OpenSeadragon.Button({
-          tooltip: 'Close',
-          srcRest: "res/x.png",
-          srcGroup: "res/x.png",
-          srcHover: "res/x.png",
-          srcDown: "res/x.png",
-          onClick: async () => {
-            viewer.setFullPage(false)
-          }
-        });
-        let dwldBtn = new OpenSeadragon.Button({
-            tooltip: 'Download',
-            srcRest: "res/download.png",
-            srcGroup: "res/download.png",
-            srcHover: "res/download.png",
-            srcDown: "res/download.png",
-            onClick: async () => {
-              let imageURL = imgpth
-              const image = await fetch(imageURL)
-              const imageBlog = await image.blob()
-              imageURL = URL.createObjectURL(imageBlog)
-             jQuery('<a>', {
-                  id: 'download_img',
-                  href: imageURL,
-                  download: imgpth
-              }).appendTo('body');
-              document.getElementById('download_img')?.click()
-              jQuery('#download_img').remove()
-            }
-          });
-          viewer.addControl(clsBtn.element, { anchor: OpenSeadragon.ControlAnchor.TOP_LEFT });
-          viewer.addControl(dwldBtn.element, { anchor: OpenSeadragon.ControlAnchor.TOP_LEFT });
-    });
-
-    viewer.open({
-        type: "image",
-        url:  imgpth,
-    })
-    viewer.setMouseNavEnabled(true)
-    viewer.viewport.goHome(true)
-    viewer.viewport.applyConstraints(true)
-    viewer.viewport.zoomTo(1.0, undefined, true)
-    viewer.setFullPage(true)        
-    EventManager.inst.setEnabled(false)
-    jQuery("body").removeClass()
-    viewer.addOnceHandler("full-page", ()=>{
-        viewer.setMouseNavEnabled(false)
-        jQuery('#openseadragon1').remove()
-        setTimeout(() => {
-            EventManager.inst.setEnabled(true)
-        }, 100)    
-    })
 }
 
 export class Node {
@@ -212,8 +130,8 @@ export class Node {
             } else {
                 dc.hoverCursor = ''
             }
-            if (grectC && !trectC) {
-                const img = getHoveredImage()
+            if (grectC && !trectC && this.content) {
+                const img = getHoveredImage(this.content)
                 if (img && img.classList.contains('viewable')) {
                     dc.hoverCursor = 'pointer'
                     if (click) {
