@@ -135,6 +135,7 @@ export class Node {
                 if (img && img.classList.contains('viewable')) {
                     dc.hoverCursor = 'pointer'
                     if (click) {
+                        console.log("!");
                         viewFullScreen(img.currentSrc)
                     }
                 }
