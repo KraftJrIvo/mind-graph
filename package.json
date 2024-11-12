@@ -22,12 +22,14 @@
   },
   "dependencies": {
     "@types/openseadragon": "^3.0.10",
+    "@types/three": "^0.170.0",
     "express": "^4.21.1",
     "jquery": "^3.6.0",
     "js-base64": "^3.7.7",
     "jsdom": "^20.0.0",
     "json-server": "^0.17.0",
     "openseadragon": "^5.0.0",
+    "three": "^0.170.0",
     "webfontloader": "^1.6.28"
   }
 }

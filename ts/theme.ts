@@ -16,9 +16,9 @@ export function parseColor(str: string): Color {
 }
 
 export class Theme {
-    public bg   : Color = "#000001"
-    public main : Color = "#4A2545"
-    public edge : Color = "#824C71"
-    public text : Color = "#DCCCA3"
-    public alt  : Color = "#90AA86"
+    public bg   : Color = "#0D1321"
+    public main : Color = "#1D2D44"
+    public edge : Color = "#3E5C76"
+    public text : Color = "#F0EBD8"
+    public alt  : Color = "#748CAB"
 }

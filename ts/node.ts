@@ -1,5 +1,6 @@
 import {ones, Point2d, pt, rect, Rect, rect_zeros, rectPt, zeros} from "./math"
-import { clbkself, DC } from "./types"
+import { clbkself } from "./types"
+import { DC } from "./dc"
 
 import { typesetMathJax } from "../js/mathjax"
 import { EventManager } from "./evtman"
@@ -101,6 +102,7 @@ export class Node {
         div.classList.add('math')
         div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg
         div.style.backgroundColor = dc.thm.edge
+        div.style.color = dc.thm.text
         div.style.borderRadius = CORNER_R + 'px'
         div.style.opacity = '0'
         const c = div.children.item(1)

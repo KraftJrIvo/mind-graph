@@ -1,8 +1,7 @@
 import { Node, GrabPoint } from "./node"
 import { EventManager } from "./evtman"
-import { Grid } from "./grid"
 import { pt, rect, zeros } from "./math"
-import { clbkself, DC } from "./types"
+import { DC } from "./dc"
 import { getCurMillis } from "./util"
 
 let lastDraw = 0
@@ -20,27 +19,25 @@ let panning = false
 let off = zeros()
 let curOff = zeros()
 
-let grid = new Grid()
 let nodes = new Array<Node>()
 
 function init() {
+    DC.inst.init()
     updateCanvas()
     DC.inst.off = off = pt(window.innerWidth, window.innerHeight).coeff(0.5)
 
     initDeviceStatus()
     initInputEvents()
 
-    nodes.push(new Node("math", rect(-150, -50, 300, 100)))
-    nodes.push(new Node("sets", rect(200, -50, 100, 150)))
-    nodes.push(new Node("alg", rect(-150, 100, 200, 200)))
+    nodes.push(new Node("math", rect(-146, -81, 300, 379)))
+    nodes.push(new Node("sets", rect(256, -159, 276, 105)))
+    nodes.push(new Node("alg", rect(255, 93, 314, 263)))
 
     render()
 }
 
 function updateCanvas() {
-    const dc = DC.inst
-    dc.cv.width = window.innerWidth
-    dc.cv.height = window.innerHeight
+    DC.inst.setSize()
 }
 
 function initDeviceStatus() {
@@ -83,7 +80,7 @@ function initInputEvents() {
     window.addEventListener('resize', function(e){
         updateCanvas()        
         lastResize = this.performance.now()
-        EventManager.inst.notify("cansz", pt(DC.inst.cv.width, DC.inst.cv.height))
+        EventManager.inst.notify("cansz", pt(this.window.innerWidth, this.window.innerHeight))
     })
     window.addEventListener('click', function(e) {
         if (!movedThisMouseDownTime) {
@@ -229,8 +226,8 @@ function resetSelection() {
 }
 
 function updateContent() {
-    nodes.forEach(e => {
-        e.updateContent()
+    nodes.forEach(n => {
+        n.updateContent()
     });
 }
 
@@ -239,11 +236,10 @@ function render() {
     dc.hoverObj = null
     dc.grabbable = false
 
-    grid.draw()    
-    nodes.forEach(e => {
+    nodes.forEach(n => {
         if (!dc.hoverObj)
-            e.checkHover()
-        e.checkContentState()
+            n.checkHover()
+        n.checkContentState()
     });
     requestAnimationFrame(render)
     
@@ -258,6 +254,8 @@ function render() {
     } else {
         $('body').removeClass('unselectable')
     }
+
+    dc.render()
 }
 
 $(window).on('load', function () {
