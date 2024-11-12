@@ -86,7 +86,7 @@ export class DrawContext {
                 }
 
                 void main()	{
-                    float step = pow(10.0, ceil((1.0 / log(10.0)) * log(min(res.x, res.y) / (scale * 10.0))));
+                    float step = pow(10.0, ceil((1.0 / log(10.0)) * log(min(res.x, res.y) / (scale * 5.))));
                     float step2 = step / 10.;
                     vec2 pos = (vec2(gl_FragCoord.x, res.y - gl_FragCoord.y) - off) / scale;
                     float dist11 = length(pos - (step * left2(pos / step)));
@@ -100,7 +100,7 @@ export class DrawContext {
                     float dist24 = length(pos - (step2 * rl2(pos / step2)));
                     float dist2 = min(min(dist21, dist22), min(dist23, dist24));
                     if ((dist1 < 2. / scale) || (dist2 < 1. / scale))
-                        gl_FragColor = vec4(alt, 1.);
+                        gl_FragColor = vec4(bg + vec3(0.25), 1.);
                     else
                         gl_FragColor = vec4(bg, 1.);
                 }
