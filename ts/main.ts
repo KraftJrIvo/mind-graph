@@ -243,6 +243,7 @@ function render() {
     nodes.forEach(e => {
         if (!dc.hoverObj)
             e.checkHover()
+        e.checkContentState()
     });
     requestAnimationFrame(render)
     

@@ -39,7 +39,7 @@ img {
     width: 100%;
 }
 
-img .viewable {    
+img.viewable {    
     border-radius: 10px;
 }
 
@@ -52,22 +52,24 @@ img .viewable {
 
 .node {
     position: fixed;
+    overflow: hidden;
 }
 
 .node-head {
-    text-align: center;
     overflow: hidden;
     white-space: nowrap;
     width: 100%;
     font-weight: bold;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.node-body {
-    text-align: left;
-    width: 100%;
+.node-content {
+    padding: 10px;
     height: 100%;
-    padding: 5px;
-    overflow: hidden;
+    text-align: justify;
 }
 
 .definition {

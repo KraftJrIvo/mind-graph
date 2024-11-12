@@ -116,6 +116,10 @@ export class Rect {
         return this.xy.addPt(this.wh.coeff(0.5))
     }
 
+    area(): number {
+        return this.wh.x * this.wh.y
+    }
+
     coeff(coeff: number) {
         return new Rect(this.xy.coeff(coeff), this.wh.coeff(coeff))
     }

@@ -1,15 +1,16 @@
-import {ones, Point2d, pt, rect, Rect, rect_zeros, zeros} from "./math"
+import {ones, Point2d, pt, rect, Rect, rect_zeros, rectPt, zeros} from "./math"
 import { clbkself, DC } from "./types"
 
 import { typesetMathJax } from "../js/mathjax"
 import { EventManager } from "./evtman"
 
-import OpenSeadragon from "openseadragon"
 import { getHoveredImage, viewFullScreen } from "./util"
 
 const CORNER_R = 10
 const TITLE_H = 20
 const MIN_SZ = 25
+const MIN_SCALE = 0.4
+const FADE_MS = 400
 
 export class GrabPoint {
     public xy : Point2d = zeros()
@@ -49,7 +50,10 @@ export class GrabPoint {
 export class Node {
     public nom : string = ""
     public rct : Rect = rect_zeros()
-    public content? : HTMLDivElement
+    public inBounds : boolean = false
+    public contentVisible : boolean = false
+    public contentInProgress : boolean = false
+    public content : HTMLDivElement | null = null
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
 
     private _evt_click_idx: number
@@ -60,41 +64,35 @@ export class Node {
         const dc = DC.inst
 
         const htmlMath = `
-            <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Математика</div>
-            <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
-                <div id="content">
-                    Конспекты:<br/>
-                    <div align="center"><span class="defined">Теория множеств</span></div>
-                    <div align="center"><span class="defined">Алгебра</span></div>
-                    <br/>
-                    <img class="viewable" src="https://kraftjrivo.github.io/mind-graph/res/img/numbers.png"/>
-                </div>
+            <div class="node-head">Математика</div>
+            <div class="node-content" style="background-color:${dc.thm.main};">
+                Конспекты:<br/>
+                <div align="center"><span class="defined">Теория множеств</span></div>
+                <div align="center"><span class="defined">Алгебра</span></div>
+                <br/>
+                <img class="viewable" src="https://kraftjrivo.github.io/mind-graph/res/img/numbers.png"/>
             </div>
-            `
+        `
 
         const htmlSets = `
-        <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Теория множеств</div>
-        <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
-            <div id="content">
+            <div class="node-head">Теория множеств</div>
+            <div class="node-content" style="background-color:${dc.thm.main};">
                 <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
                 <div class="formula">
                     [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
                 </div>
             </div>
-        </div>
         `
 
         const htmlAlg = `
-        <div class="node-head" style="background-color:${dc.thm.edge};border-radius:${CORNER_R}px ${CORNER_R}px 0px 0px">Алгебра</div>
-        <div class="node-body" style="background-color:${dc.thm.main};border-radius:0px 0px ${CORNER_R}px ${CORNER_R}px">
-            <div id="content">
+            <div class="node-head">Алгебра</div>
+            <div class="node-content" style="background-color:${dc.thm.main};">
                 <p><span class="definition">Алгебраической системой (или структурой)</span> называют непустое <span class="defined">множество</span>, на котором заданы некоторые <span class="defined">операции</span> и <span class="defined">отношения</span></p>
                 <p><span class="defined">Операция "?"</span>, заданная на множестве [S], называется <span class="definition">бинарной</span>, если она ставит в соответсвие <span class="stressed">двум</span> эл-там мн-ва [S] один эл-т оттуда же:</p>
                 <div class="formula">
                     [(S;?) : \\; S×S→S]
                 </div>
             </div>
-        </div>
         `
         
         var div = document.createElement('div')
@@ -102,7 +100,11 @@ export class Node {
         div.classList.add('node')
         div.classList.add('math')
         div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg
+        div.style.backgroundColor = dc.thm.edge
         div.style.borderRadius = CORNER_R + 'px'
+        div.style.opacity = '0'
+        const c = div.children.item(1)
+        if (c) (c as HTMLDivElement).style.opacity = '0'
         this.content = div
         typesetMathJax(div)
 
@@ -145,6 +147,45 @@ export class Node {
         return false
     }
 
+    setContentFlags(elem : any, contentVisible : boolean) {
+        this.contentInProgress = false
+    }
+
+    checkContentState() {
+        if (this.content) {
+            const dc = DC.inst
+
+            const inBounds = this.rct.overlaps(dc.visibleRect())
+            if (inBounds != this.inBounds) {
+                $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
+                this.inBounds = inBounds
+            }
+
+            if (!this.contentInProgress) {
+                const contVis = inBounds && (dc.scale >= MIN_SCALE)
+                if (contVis != this.contentVisible) {
+                    if (contVis) {
+                        const c = $(this.content).children().first()    
+                        c.css('white-space', 'nowrap')                    
+                        c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
+                            $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
+                        })
+                        setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                    } else {
+                        const c = $(this.content).children().first().next()
+                        c.stop().fadeTo(FADE_MS / 2, 0, function() {
+                            $(this).prev().css('white-space', 'unset')
+                            $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, FADE_MS / 2)
+                        })
+                        setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                    }
+                    this.contentVisible = contVis
+                    this.contentInProgress = true
+                }
+            }
+        }
+    }
+
     setZ(z: number) {
         if (this.content) {
             this.content.style.zIndex = ''+z
@@ -158,9 +199,13 @@ export class Node {
             this.content.style.left = gxy.x + 'px'
             this.content.style.top = gxy.y + 'px'
             this.content.style.width = this.rct.wh.x + 'px'
-            this.content.style.height = this.rct.wh.y + 'px'
+            this.content.style.height = (this.rct.wh.y + TITLE_H) + 'px'
             this.content.style.transform = 'scale(' + dc.scale + ')'
             this.content.style.transformOrigin = 'left top'
+            const cbody = this.content.children.item(1)
+            if (cbody) {
+                (cbody as HTMLDivElement).style.height = (((1 - (TITLE_H) / (this.rct.wh.y + TITLE_H))) - 1) + 'px'
+            }
         }
     }
 

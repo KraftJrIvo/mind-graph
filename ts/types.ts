@@ -1,4 +1,4 @@
-import { Point2d, rect, Rect, rectPt, zeros } from "./math"
+import { Point2d, pt, rect, Rect, rectPt, zeros } from "./math"
 import { Theme } from "./theme"
 
 export type Callback = (stuff: any) => void
@@ -44,8 +44,12 @@ export class DrawContext {
         return p.coeff(this.scale).addPt(this.off)
     }
 
-    globalRect(r : Rect) {
+    globalRect(r : Rect) : Rect {
         return rectPt(this.globalPt(r.xy), r.wh.coeff(this.scale))
+    }
+
+    visibleRect() : Rect {
+        return rectPt(this.off.coeff(-1 / this.scale), pt(window.innerWidth, window.innerHeight).coeff(1 / this.scale))
     }
 };
 
