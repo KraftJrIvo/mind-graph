@@ -66,7 +66,7 @@ export class Node {
 
         const htmlMath = `
             <div class="node-head">Математика</div>
-            <div class="node-content" style="background-color:${dc.thm.main};">
+            <div class="node-content">
                 Конспекты:<br/>
                 <div align="center"><span class="defined">Теория множеств</span></div>
                 <div align="center"><span class="defined">Алгебра</span></div>
@@ -77,7 +77,7 @@ export class Node {
 
         const htmlSets = `
             <div class="node-head">Теория множеств</div>
-            <div class="node-content" style="background-color:${dc.thm.main};">
+            <div class="node-content">
                 <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
                 <div class="formula">
                     [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
@@ -87,7 +87,7 @@ export class Node {
 
         const htmlAlg = `
             <div class="node-head">Алгебра</div>
-            <div class="node-content" style="background-color:${dc.thm.main};">
+            <div class="node-content">
                 <p><span class="definition">Алгебраической системой (или структурой)</span> называют непустое <span class="defined">множество</span>, на котором заданы некоторые <span class="defined">операции</span> и <span class="defined">отношения</span></p>
                 <p><span class="defined">Операция "?"</span>, заданная на множестве [S], называется <span class="definition">бинарной</span>, если она ставит в соответсвие <span class="stressed">двум</span> эл-там мн-ва [S] один эл-т оттуда же:</p>
                 <div class="formula">
@@ -100,7 +100,8 @@ export class Node {
         document.body.appendChild(div)              
         div.classList.add('node')
         div.classList.add('math')
-        div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg
+        div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg;
+        (div.children[1] as HTMLDivElement).style.backgroundColor = dc.thm.main
         div.style.backgroundColor = dc.thm.edge
         div.style.color = dc.thm.text
         div.style.borderRadius = CORNER_R + 'px'
