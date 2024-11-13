@@ -54,6 +54,8 @@ export class Node {
     public inBounds : boolean = false
     public contentVisible : boolean = false
     public contentInProgress : boolean = false
+    public contentLoading : boolean = false
+    public contentLoaded : boolean = false
     public content : HTMLDivElement | null = null
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
 
@@ -63,53 +65,6 @@ export class Node {
         this.nom = nom
 
         const dc = DC.inst
-
-        const htmlMath = `
-            <div class="node-head">Математика</div>
-            <div class="node-content">
-                Конспекты:<br/>
-                <div align="center"><span class="defined">Теория множеств</span></div>
-                <div align="center"><span class="defined">Алгебра</span></div>
-                <br/>
-                <img class="viewable" src="https://kraftjrivo.github.io/mind-graph/res/img/numbers.png"/>
-            </div>
-        `
-
-        const htmlSets = `
-            <div class="node-head">Теория множеств</div>
-            <div class="node-content">
-                <span class="definition">Множество</span> — объект, <span class="defined">состоящий</span> из <span class="defined">принадлежащих ему</span> <span class="definition">элементов</span>:
-                <div class="formula">
-                    [A = \\{a,b,c\\} \\;\\;\\; \\Rightarrow \\;\\;\\; a,b,c \\in A.]
-                </div>
-            </div>
-        `
-
-        const htmlAlg = `
-            <div class="node-head">Алгебра</div>
-            <div class="node-content">
-                <p><span class="definition">Алгебраической системой (или структурой)</span> называют непустое <span class="defined">множество</span>, на котором заданы некоторые <span class="defined">операции</span> и <span class="defined">отношения</span></p>
-                <p><span class="defined">Операция "?"</span>, заданная на множестве [S], называется <span class="definition">бинарной</span>, если она ставит в соответсвие <span class="stressed">двум</span> эл-там мн-ва [S] один эл-т оттуда же:</p>
-                <div class="formula">
-                    [(S;?) : \\; S×S→S]
-                </div>
-            </div>
-        `
-        
-        var div = document.createElement('div')
-        document.body.appendChild(div)              
-        div.classList.add('node')
-        div.classList.add('math')
-        div.innerHTML = nom == 'math' ? htmlMath : nom == 'sets' ? htmlSets : htmlAlg;
-        (div.children[1] as HTMLDivElement).style.backgroundColor = dc.thm.main
-        div.style.backgroundColor = dc.thm.edge
-        div.style.color = dc.thm.text
-        div.style.borderRadius = CORNER_R + 'px'
-        div.style.opacity = '0'
-        const c = div.children.item(1)
-        if (c) (c as HTMLDivElement).style.opacity = '0'
-        this.content = div
-        typesetMathJax(div)
 
         this._evt_click_idx = EventManager.inst.subscribe("click", clbkself( this.clbk_click, this))
 
@@ -155,35 +110,79 @@ export class Node {
     }
 
     checkContentState() {
-        if (this.content) {
-            const dc = DC.inst
+        const dc = DC.inst
 
-            const inBounds = this.rct.overlaps(dc.visibleRect())
-            if (inBounds != this.inBounds) {
-                $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
-                this.inBounds = inBounds
-            }
+        const inBounds = this.rct.overlaps(dc.visibleRect())
+        if (this.content && inBounds != this.inBounds) {
+            $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
+            this.inBounds = inBounds
+        }
 
-            if (!this.contentInProgress) {
-                const contVis = inBounds && (dc.scale >= MIN_SCALE)
-                if (contVis != this.contentVisible) {
-                    if (contVis) {
+        if (!this.contentInProgress) {
+            const contVis = inBounds && (dc.scale >= MIN_SCALE)
+            if (contVis != this.contentVisible) {
+                if (contVis) {
+                    if (this.content) {
                         const c = $(this.content).children().first()    
                         c.css('white-space', 'nowrap')                    
                         c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
                             $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
                         })
                         setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                        this.contentVisible = contVis
+                        this.contentInProgress = true
                     } else {
+                        if (!this.contentLoading) {
+                            this.contentLoading = true
+                            let xhr = new XMLHttpRequest()
+                            xhr.open('GET', `https://kraftjrivo.github.io/mind-graph/content/${this.nom}.html`)
+                            xhr.send()
+                            xhr.onload = () => {
+                                if (xhr.status == 200) {
+                                    const str = (xhr.response as string)
+                                    const titleEnd = str.indexOf('\n')
+                                    const title = str.substring(0, titleEnd)
+                                    const body = str.substring(titleEnd + 1, str.length)
+                                    const html = `
+                                        <div class="node-head">${title}</div>
+                                        <div class="node-content">
+                                            ${body}
+                                        </div>
+                                    `
+                                    var div = document.createElement('div')
+                                    document.body.appendChild(div)              
+                                    div.classList.add('node')
+                                    div.classList.add('math')
+                                    div.innerHTML = html;
+                                    (div.children[1] as HTMLDivElement).style.backgroundColor = dc.thm.main
+                                    div.style.backgroundColor = dc.thm.edge
+                                    div.style.color = dc.thm.text
+                                    div.style.borderRadius = CORNER_R + 'px'
+                                    div.style.opacity = '0'
+                                    const c = div.children.item(1)
+                                    if (c) (c as HTMLDivElement).style.opacity = '0';
+                                    this.content = div
+                                    this.contentLoaded = true
+                                    this.contentLoading = false
+                                    typesetMathJax(div)
+                                    this.updateRect()
+                                } else {
+                                    alert(`error ${xhr.status}: ${xhr.statusText}`)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (this.content) {
                         const c = $(this.content).children().first().next()
                         c.stop().fadeTo(FADE_MS / 2, 0, function() {
                             $(this).prev().css('white-space', 'unset')
                             $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, FADE_MS / 2)
                         })
                         setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                        this.contentVisible = contVis
+                        this.contentInProgress = true
                     }
-                    this.contentVisible = contVis
-                    this.contentInProgress = true
                 }
             }
         }
