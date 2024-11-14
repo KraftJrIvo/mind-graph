@@ -135,10 +135,10 @@ export class Node {
                         if (!this.contentLoading) {
                             this.contentLoading = true
                             let xhr = new XMLHttpRequest()
+                            xhr.open('GET', `https://kraftjrivo.github.io/mind-graph/content/${this.nom}.html`)
 							xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
 							xhr.setRequestHeader('Expires', 'Thu, 1 Jan 1970 00:00:00 GMT')
 							xhr.setRequestHeader('Pragma', 'no-cache')
-                            xhr.open('GET', `https://kraftjrivo.github.io/mind-graph/content/${this.nom}.html`)
                             xhr.send()
                             xhr.onload = () => {
                                 if (xhr.status == 200) {
