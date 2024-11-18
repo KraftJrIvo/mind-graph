@@ -54,6 +54,11 @@ img.viewable {
     overflow: hidden;
 }
 
+.node.selected {
+    /*box-shadow: 0px 0px 10px -2px #fff;*/
+    outline: 2px solid white;
+}
+
 .node-head {
     overflow: hidden;
     white-space: nowrap;
@@ -62,7 +67,15 @@ img.viewable {
     text-align: center;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+}
+
+.node-title {
+    width: auto;
+}
+
+.node-head-icon {
+    width: 20px;
 }
 
 .node-content {

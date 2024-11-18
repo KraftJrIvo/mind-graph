@@ -63,15 +63,30 @@ function drag() {
 function focusOnNode(e: Node) {
     const dc = DC.inst
     const idx = nodes.indexOf(e)
+    nodes[idx].selected = true
     nodes.splice(idx, 1)
     nodes.unshift(e)
     dc.focusObj = e
     for (let i = 0; i < nodes.length; ++i) {
         const n = nodes[i]
         n.setClass('unselectable', true)
-        n.setZ(nodes.length - i);
+        n.setClass('selected', false)
+        n.setZ(nodes.length - i)
+        n.selected = false
     }
     dc.focusObj.setClass('unselectable', false)
+    dc.focusObj.setClass('selected', true)
+    resetSelection()
+}
+
+function deselectNodes() {
+    for (let i = 0; i < nodes.length; ++i) {
+        const n = nodes[i]
+        n.setClass('unselectable', true)
+        n.setClass('selected', false)
+        n.selected = false
+    }
+    resetSelection()
 }
 
 function initInputEvents() {
@@ -147,6 +162,7 @@ function initInputEvents() {
                         }
                         panning = false
                     } else {
+                        deselectNodes()
                         lastMouseDownPos = point
                         panning = true
                     }
@@ -249,7 +265,6 @@ function render() {
         $('body').css('cursor', '')
 
     if (dc.grabObj) {
-        resetSelection()
         $('body').addClass('unselectable')
     } else {
         $('body').removeClass('unselectable')

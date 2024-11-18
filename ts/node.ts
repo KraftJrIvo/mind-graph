@@ -9,7 +9,7 @@ import { getHoveredImage, viewFullScreen } from "./util"
 
 const CORNER_R = 10
 const TITLE_H = 20
-const MIN_SZ = 25
+const MIN_SZ = 100
 const MIN_SCALE = 0.4
 const FADE_MS = 400
 
@@ -50,7 +50,9 @@ export class GrabPoint {
 
 export class Node {
     public nom : string = ""
+    public title : string = ""
     public rct : Rect = rect_zeros()
+    public selected : boolean = false
     public inBounds : boolean = false
     public contentVisible : boolean = false
     public contentInProgress : boolean = false
@@ -58,6 +60,8 @@ export class Node {
     public contentLoaded : boolean = false
     public content : HTMLDivElement | null = null
     public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
+    public pinButton : GrabPoint = new GrabPoint(zeros(), CORNER_R + 2, this, 'pointer')
+    public closeButton : GrabPoint = new GrabPoint(zeros(), CORNER_R + 2, this, 'pointer')
 
     private _evt_click_idx: number
 
@@ -72,6 +76,10 @@ export class Node {
     }
 
     checkHover(click = false) {
+        if (this.closeButton.checkHover())
+            return true
+        if (this.pinButton.checkHover())
+            return true
         if (this.sizeCorner.checkHover())
             return true
         const dc = DC.inst
@@ -105,8 +113,9 @@ export class Node {
         return false
     }
 
-    setContentFlags(elem : any, contentVisible : boolean) {
+    finishContentStuff(elem : any, contentVisible : boolean) {
         this.contentInProgress = false
+        this.updateRect()
     }
 
     checkContentState() {
@@ -126,9 +135,10 @@ export class Node {
                         const c = $(this.content).children().first()    
                         c.css('white-space', 'nowrap')                    
                         c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
+                            $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
                             $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
                         })
-                        setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                        setTimeout(this.finishContentStuff.bind(this), FADE_MS + 1)
                         this.contentVisible = contVis
                         this.contentInProgress = true
                     } else {
@@ -141,10 +151,10 @@ export class Node {
                                 if (xhr.status == 200) {
                                     const str = (xhr.response as string)
                                     const titleEnd = str.indexOf('\n')
-                                    const title = str.substring(0, titleEnd)
+                                    this.title = str.substring(0, titleEnd)
                                     const body = str.substring(titleEnd + 1, str.length)
                                     const html = `
-                                        <div class="node-head">${title}</div>
+                                        <div class="node-head"><img class="node-head-icon" src="res/svg/copy.svg"/><span class="node-title">${this.title}</span><img class="node-head-icon" src="res/svg/close.svg"/></div>
                                         <div class="node-content">
                                             ${body}
                                         </div>
@@ -174,12 +184,13 @@ export class Node {
                     }
                 } else {
                     if (this.content) {
-                        const c = $(this.content).children().first().next()
-                        c.stop().fadeTo(FADE_MS / 2, 0, function() {
+                        const c = $(this.content).children().first()
+                        c.find('.node-head-icon').fadeTo(FADE_MS / 2, 0)
+                        c.next().stop().fadeTo(FADE_MS / 2, 0, function() {
                             $(this).prev().css('white-space', 'unset')
                             $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, FADE_MS / 2)
                         })
-                        setTimeout(this.setContentFlags.bind(this), FADE_MS + 1)
+                        setTimeout(this.finishContentStuff.bind(this), FADE_MS + 1)
                         this.contentVisible = contVis
                         this.contentInProgress = true
                     }
@@ -211,13 +222,42 @@ export class Node {
         }
     }
 
+    getShortTitle() {
+        let result = "";
+        let v = true;
+        for (let i = 0; i < this.title.length; i++) {
+            if (this.title[i] == ' ')
+                v = true;
+            else if (this.title[i] != ' ' && v == true) {
+                result += (this.title[i]);
+                v = false;
+            }
+        }
+        return result ? result.toUpperCase() : '...';
+    }
+
     updateRect(xy: Point2d = this.rct.xy, wh: Point2d = this.rct.wh) {
         const dc = DC.inst
         this.rct.xy = xy
         this.rct.wh = wh
         this.sizeCorner.xy = this.rct.xy.addPt(this.rct.wh.subPt(ones().coeff(CORNER_R)))
+        this.pinButton.xy = this.rct.xy.addPt(pt(CORNER_R, -TITLE_H/2))
+        this.closeButton.xy = this.rct.xy.addPt(pt(this.rct.wh.x - CORNER_R, -TITLE_H/2))
 
-        this.updateContent()        
+        this.updateContent()
+        
+        if (this.content) {
+            const headEl =  $(this.content).children().first()[0] as HTMLDivElement
+            const titleEl = $(this.content).find('.node-title').first()
+            titleEl.html(this.title)
+
+            let isTitleOverflowing = headEl.clientWidth < headEl.scrollWidth
+            if (isTitleOverflowing)
+                titleEl.html(this.getShortTitle())
+            else
+                titleEl.html(this.title)
+            
+        }
     }
 
     grabPointMoved(gp : GrabPoint) {
