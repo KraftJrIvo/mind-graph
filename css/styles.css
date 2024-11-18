@@ -55,8 +55,8 @@ img.viewable {
 }
 
 .node.selected {
-    /*box-shadow: 0px 0px 10px -2px #fff;*/
-    outline: 2px solid white;
+    outline-color: white;
+    outline-style: solid;
 }
 
 .node-head {

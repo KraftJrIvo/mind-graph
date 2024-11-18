@@ -20,7 +20,6 @@ function arrayBufferToBase64( buffer ) {
 	return dom.window.btoa( binary );
 }
 
-const opentype = require('opentype.js');
 const { createHash } = require('crypto');
 
 app.use(express.static(path.join(__dirname)));

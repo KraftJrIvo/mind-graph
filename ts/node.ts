@@ -51,6 +51,7 @@ export class GrabPoint {
 export class Node {
     public nom : string = ""
     public title : string = ""
+    public body : string = ""
     public rct : Rect = rect_zeros()
     public selected : boolean = false
     public inBounds : boolean = false
@@ -73,6 +74,7 @@ export class Node {
         this._evt_click_idx = EventManager.inst.subscribe("click", clbkself( this.clbk_click, this))
 
         this.updateRect(rct.xy, rct.wh)
+        this.fillContent()
     }
 
     checkHover(click = false) {
@@ -113,15 +115,61 @@ export class Node {
         return false
     }
 
-    finishContentStuff(elem : any, contentVisible : boolean) {
+    finishMovingContent() {
         this.contentInProgress = false
+        this.updateRect()
+    }
+
+    fillContent(str?: string) {
+        const dc = DC.inst
+
+        if (str) {
+            const titleEnd = str.indexOf('\n')
+            this.title = str.substring(0, titleEnd)
+            this.body = str.substring(titleEnd + 1, str.length)
+        } else {
+            this.title = '...'
+            this.body = ''
+        }
+        let div = this.content;
+        if (!div) {
+            div = document.createElement('div')
+            document.body.appendChild(div)              
+        }
+        div.classList.add('node')
+        div.classList.add('math')
+        if (str) {
+            $(div).find('.node-title').html(this.title)
+            $(div).find('.node-content').html(this.body)
+        } else {
+                const html = `
+                <div class="node-head"><img class="node-head-icon" src="res/svg/copy.svg"/><span class="node-title">${this.title}</span><img class="node-head-icon" src="res/svg/close.svg"/></div>
+                <div class="node-content">
+                    ${this.body}
+                </div>
+            `
+            div.innerHTML = html;
+            (div.children[1] as HTMLDivElement).style.backgroundColor = dc.thm.main
+            div.style.backgroundColor = dc.thm.edge
+            div.style.color = dc.thm.text
+            div.style.borderRadius = CORNER_R + 'px'
+            div.style.opacity = '0'
+            const c = div.children.item(1)
+            if (c) (c as HTMLDivElement).style.opacity = '0';
+        }
+        this.content = div
+        if (str) {
+            this.contentLoaded = true
+            this.contentLoading = false    
+            typesetMathJax(div)
+        }
         this.updateRect()
     }
 
     checkContentState() {
         const dc = DC.inst
 
-        const inBounds = this.rct.overlaps(dc.visibleRect())
+        const inBounds = rectPt(this.rct.xy.sub(0, TITLE_H), this.rct.wh.add(0, TITLE_H)).overlaps(dc.visibleRect())
         if (this.content && inBounds != this.inBounds) {
             $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
             this.inBounds = inBounds
@@ -130,71 +178,44 @@ export class Node {
         if (!this.contentInProgress) {
             const contVis = inBounds && (dc.scale >= MIN_SCALE)
             if (contVis != this.contentVisible) {
-                if (contVis) {
-                    if (this.content) {
-                        const c = $(this.content).children().first()    
-                        c.css('white-space', 'nowrap')                    
-                        c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
-                            $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
-                            $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
-                        })
-                        setTimeout(this.finishContentStuff.bind(this), FADE_MS + 1)
-                        this.contentVisible = contVis
-                        this.contentInProgress = true
-                    } else {
-                        if (!this.contentLoading) {
-                            this.contentLoading = true
-                            let xhr = new XMLHttpRequest()
-                            xhr.open('GET', `https://kraftjrivo.github.io/mind-graph/content/${this.nom}.html`)
-							xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
-							xhr.setRequestHeader('Expires', 'Thu, 1 Jan 1970 00:00:00 GMT')
-							xhr.setRequestHeader('Pragma', 'no-cache')
-                            xhr.send()
-                            xhr.onload = () => {
-                                if (xhr.status == 200) {
-                                    const str = (xhr.response as string)
-                                    const titleEnd = str.indexOf('\n')
-                                    this.title = str.substring(0, titleEnd)
-                                    const body = str.substring(titleEnd + 1, str.length)
-                                    const html = `
-                                        <div class="node-head"><img class="node-head-icon" src="res/svg/copy.svg"/><span class="node-title">${this.title}</span><img class="node-head-icon" src="res/svg/close.svg"/></div>
-                                        <div class="node-content">
-                                            ${body}
-                                        </div>
-                                    `
-                                    var div = document.createElement('div')
-                                    document.body.appendChild(div)              
-                                    div.classList.add('node')
-                                    div.classList.add('math')
-                                    div.innerHTML = html;
-                                    (div.children[1] as HTMLDivElement).style.backgroundColor = dc.thm.main
-                                    div.style.backgroundColor = dc.thm.edge
-                                    div.style.color = dc.thm.text
-                                    div.style.borderRadius = CORNER_R + 'px'
-                                    div.style.opacity = '0'
-                                    const c = div.children.item(1)
-                                    if (c) (c as HTMLDivElement).style.opacity = '0';
-                                    this.content = div
-                                    this.contentLoaded = true
-                                    this.contentLoading = false
-                                    typesetMathJax(div)
-                                    this.updateRect()
-                                } else {
-                                    alert(`error ${xhr.status}: ${xhr.statusText}`)
-                                }
+                if (contVis && this.contentLoaded && this.content) {
+                    const c = $(this.content).children().first()    
+                    c.css('white-space', 'nowrap')                    
+                    c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
+                        $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
+                        $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
+                    })
+                    setTimeout(this.finishMovingContent.bind(this), FADE_MS + 1)
+                    this.contentVisible = true
+                    this.contentInProgress = true
+                } else {
+                    if (contVis && !this.contentLoading) {
+                        this.contentLoading = true
+                        let xhr = new XMLHttpRequest()
+                        xhr.open('GET', `content/${this.nom}.html`)
+                        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
+                        xhr.setRequestHeader('Expires', 'Thu, 1 Jan 1970 00:00:00 GMT')
+                        xhr.setRequestHeader('Pragma', 'no-cache')
+                        xhr.send()
+                        xhr.onload = () => {
+                            if (xhr.status == 200) {
+                                const str = (xhr.response as string)
+                                this.fillContent(str)
+                                //setTimeout(this.fillContent.bind(this, str), 1000)
+                            } else {
+                                alert(`error ${xhr.status}: ${xhr.statusText}`)
                             }
                         }
-                    }
-                } else {
-                    if (this.content) {
+                    } else if (this.content) {
                         const c = $(this.content).children().first()
-                        c.find('.node-head-icon').fadeTo(FADE_MS / 2, 0)
-                        c.next().stop().fadeTo(FADE_MS / 2, 0, function() {
+                        const tms = this.contentLoaded ? FADE_MS : 0
+                        c.find('.node-head-icon').fadeTo(tms / 2, 0)
+                        c.next().stop().fadeTo(tms / 2, 0, function() {
                             $(this).prev().css('white-space', 'unset')
-                            $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, FADE_MS / 2)
+                            $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, tms / 2)
                         })
-                        setTimeout(this.finishContentStuff.bind(this), FADE_MS + 1)
-                        this.contentVisible = contVis
+                        setTimeout(this.finishMovingContent.bind(this), tms)
+                        this.contentVisible = false
                         this.contentInProgress = true
                     }
                 }
@@ -218,6 +239,7 @@ export class Node {
             this.content.style.height = (this.rct.wh.y + TITLE_H) + 'px'
             this.content.style.transform = 'scale(' + dc.scale + ')'
             this.content.style.transformOrigin = 'left top'
+            this.content.style.outlineWidth = (2 / dc.scale) + 'px'
             const cbody = this.content.children.item(1)
             if (cbody) {
                 (cbody as HTMLDivElement).style.height = (((1 - (TITLE_H) / (this.rct.wh.y + TITLE_H))) - 1) + 'px'
