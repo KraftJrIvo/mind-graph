@@ -55,7 +55,6 @@ img.viewable {
 }
 
 .node.selected {
-    outline-color: white;
     outline-style: solid;
 }
 
@@ -76,6 +75,14 @@ img.viewable {
 
 .node-head-icon {
     width: 20px;
+    height: 20px;
+    min-width: 20px;
+    vertical-align: middle;
+    border-radius: 10px;
+}
+
+.node-head-icon-hover {
+    background-color: rgba(255.0, 255.0, 255.0, 0.5);
 }
 
 .node-content {

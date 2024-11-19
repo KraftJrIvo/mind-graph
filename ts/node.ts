@@ -5,41 +5,53 @@ import { DC } from "./dc"
 import { typesetMathJax } from "../js/mathjax"
 import { EventManager } from "./evtman"
 
-import { getHoveredImage, viewFullScreen } from "./util"
+import { getHoveredImage, replaceAll, viewFullScreen } from "./util"
 
 const CORNER_R = 10
 const TITLE_H = 20
-const MIN_SZ = 100
+const MIN_SZ = 75
 const MIN_SCALE = 0.4
 const FADE_MS = 400
 
 export class GrabPoint {
+    public nom : string = ""
     public xy : Point2d = zeros()
     public r : number = 0
     public parent : any = null
     public grabCursor : string = 'grab'
     public hoverCursor : string = 'grabbed'
+    public elem : HTMLElement | SVGElement | null = null
 
-    constructor(pos : Point2d, radius : number, parent : any = null, hoverCursor: string = 'grab', grabCursor: string = 'grabbed') {
+    constructor(nom : string, pos : Point2d, radius : number, parent : any = null, hoverCursor: string = 'grab', grabCursor: string = 'grabbed', elem : HTMLElement | null = null) {
+        this.nom = nom
         this.xy = pos
         this.r = radius
         this.parent = parent
         this.hoverCursor = hoverCursor
         this.grabCursor = grabCursor
+        this.elem = elem
     }
 
     checkHover() {
         const dc = DC.inst
         const gpos = dc.globalPt(this.xy)
-        const hover = gpos.subPt(dc.mouse).norm() < this.r * dc.scale
+        const hover = gpos.subPt(dc.mouse).norm() < this.r * dc.scale        
         if (hover) {
             dc.hoverObj = this
             dc.hoverOff = gpos.subPt(dc.mouse).coeff(1 / dc.scale)
             dc.grabbable = true
             dc.grabCursor = this.grabCursor
             dc.hoverCursor = this.hoverCursor
+            if (this.elem)
+                this.elem.classList.add("node-head-icon-hover")
+        } else if (this.elem) {
+            this.elem.classList.remove("node-head-icon-hover")
         }
         return hover
+    }
+
+    destroy() {        
+        this.elem?.classList.remove("node-head-icon-hover")
     }
 
     moveTo(to: Point2d) {
@@ -54,16 +66,16 @@ export class Node {
     public body : string = ""
     public rct : Rect = rect_zeros()
     public selected : boolean = false
+    public closed : boolean = false
     public inBounds : boolean = false
     public contentVisible : boolean = false
     public contentInProgress : boolean = false
     public contentLoading : boolean = false
     public contentLoaded : boolean = false
     public content : HTMLDivElement | null = null
-    public sizeCorner : GrabPoint = new GrabPoint(zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
-    public pinButton : GrabPoint = new GrabPoint(zeros(), CORNER_R + 2, this, 'pointer')
-    public closeButton : GrabPoint = new GrabPoint(zeros(), CORNER_R + 2, this, 'pointer')
-
+    public sizeCorner : GrabPoint = new GrabPoint("sz", zeros(), CORNER_R, this, 'nwse-resize', 'nwse-resize')
+    public pinButton : GrabPoint = new GrabPoint("pin", zeros(), CORNER_R + 2, this, 'pointer')
+    public closeButton : GrabPoint = new GrabPoint("close", zeros(), CORNER_R + 2, this, 'pointer')
     private _evt_click_idx: number
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
@@ -104,10 +116,8 @@ export class Node {
                 const img = getHoveredImage(this.content)
                 if (img && img.classList.contains('viewable')) {
                     dc.hoverCursor = 'pointer'
-                    if (click) {
-                        console.log("!");
+                    if (click)
                         viewFullScreen(img.currentSrc)
-                    }
                 }
             }
             return true
@@ -118,6 +128,26 @@ export class Node {
     finishMovingContent() {
         this.contentInProgress = false
         this.updateRect()
+    }
+
+    addSVGicon(el : HTMLDivElement, toEnd : boolean, src : string, classes : string[], point : GrabPoint | null = null) {
+        const dc = DC.inst
+        fetch(src)
+            .then(res => res.text())
+            .then(data => {
+                const parser = new DOMParser()
+                let svg = parser.parseFromString(replaceAll(data, "#ffffff", dc.thm.text), 'image/svg+xml').querySelector('svg')
+                if (svg) {
+                    for (var i = 0; i < classes.length; ++i)
+                        svg.classList.add(classes[i]);
+                    if (toEnd)
+                        el.appendChild(svg)
+                    else
+                        el.insertBefore(svg, el.firstChild)
+                    if (point)
+                        point.elem = svg
+                }
+        })
     }
 
     fillContent(str?: string) {
@@ -143,7 +173,7 @@ export class Node {
             $(div).find('.node-content').html(this.body)
         } else {
                 const html = `
-                <div class="node-head"><img class="node-head-icon" src="res/svg/copy.svg"/><span class="node-title">${this.title}</span><img class="node-head-icon" src="res/svg/close.svg"/></div>
+                <div class="node-head"><span class="node-title">${this.title}</span></div>
                 <div class="node-content">
                     ${this.body}
                 </div>
@@ -156,6 +186,9 @@ export class Node {
             div.style.opacity = '0'
             const c = div.children.item(1)
             if (c) (c as HTMLDivElement).style.opacity = '0';
+            const c2 = div.children[0] as HTMLDivElement
+            this.addSVGicon(c2, false, "res/svg/copy.svg", ["node-head-icon"], this.pinButton)
+            this.addSVGicon(c2, true, "res/svg/close.svg", ["node-head-icon"], this.closeButton)
         }
         this.content = div
         if (str) {
@@ -164,6 +197,14 @@ export class Node {
             typesetMathJax(div)
         }
         this.updateRect()
+    }
+
+    destroy() {
+        if (this.content) {
+            this.pinButton.destroy()
+            this.closeButton.destroy()
+            $(this.content).stop().fadeTo(FADE_MS, 0, () => {this.content?.remove()})
+        }
     }
 
     checkContentState() {
@@ -240,6 +281,7 @@ export class Node {
             this.content.style.transform = 'scale(' + dc.scale + ')'
             this.content.style.transformOrigin = 'left top'
             this.content.style.outlineWidth = (2 / dc.scale) + 'px'
+            this.content.style.outlineColor = dc.thm.text
             const cbody = this.content.children.item(1)
             if (cbody) {
                 (cbody as HTMLDivElement).style.height = (((1 - (TITLE_H) / (this.rct.wh.y + TITLE_H))) - 1) + 'px'
@@ -262,7 +304,6 @@ export class Node {
     }
 
     updateRect(xy: Point2d = this.rct.xy, wh: Point2d = this.rct.wh) {
-        const dc = DC.inst
         this.rct.xy = xy
         this.rct.wh = wh
         this.sizeCorner.xy = this.rct.xy.addPt(this.rct.wh.subPt(ones().coeff(CORNER_R)))
@@ -302,6 +343,7 @@ export class Node {
     }
 
     clbk_click(pos : Point2d) {
-        this.checkHover(true)
+        if (!this.closed)
+            this.checkHover(true)
     }
 }

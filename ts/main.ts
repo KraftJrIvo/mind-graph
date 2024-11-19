@@ -89,6 +89,20 @@ function deselectNodes() {
     resetSelection()
 }
 
+function removeNode(node: Node) {
+    const dc = DC.inst
+    const idx = nodes.indexOf(node)
+    nodes[idx].destroy()
+    nodes.splice(idx, 1)
+    if (dc.grabObj == node)
+        dc.grabObj = null
+    if (dc.hoverObj == node)
+        dc.hoverObj = null
+    if (dc.focusObj == node)
+        dc.focusObj = null
+    dc.justClosed = true
+}
+
 function initInputEvents() {
     const dc = DC.inst
 
@@ -153,7 +167,9 @@ function initInputEvents() {
                         if (dc.hoverObj instanceof Node)
                             focusOnNode(dc.hoverObj);
                         else if (dc.hoverObj instanceof GrabPoint)
-                            if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
+                            if (dc.hoverObj.nom == "close")
+                                dc.hoverObj.parent.closed = true
+                            else if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
                                 focusOnNode(dc.hoverObj.parent);
                         
                         if (dc.grabbable) {
@@ -161,8 +177,7 @@ function initInputEvents() {
                             dc.grabOff = dc.hoverOff
                         }
                         panning = false
-                    } else {
-                        deselectNodes()
+                    } else {                        
                         lastMouseDownPos = point
                         panning = true
                     }
@@ -199,6 +214,10 @@ function initInputEvents() {
                     off = off.addPt(curOff);
                 }
                 curOff = zeros()
+                if (!dc.hoverObj && !dc.grabObj && !dc.justClosed && !movedThisMouseDownTime) {
+                    deselectNodes()
+                }
+                dc.justClosed = false
             }
         })
         window.addEventListener('wheel', function(e) {
@@ -252,11 +271,19 @@ function render() {
     dc.hoverObj = null
     dc.grabbable = false
 
+    const toRm : Array<Node> = []
     nodes.forEach(n => {
-        if (!dc.hoverObj)
-            n.checkHover()
-        n.checkContentState()
+        if (n.closed) {
+            toRm.push(n)
+        } else {
+            if (!dc.hoverObj)
+                n.checkHover()
+            n.checkContentState()
+        }
     });
+    toRm.forEach(n => {
+        removeNode(n)
+    })
     requestAnimationFrame(render)
     
     if (dc.hoverObj || dc.grabObj)

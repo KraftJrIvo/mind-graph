@@ -28,6 +28,7 @@ export class DrawContext {
     public grabObj: any = null
     public grabOff: Point2d = zeros()
     public focusObj: any = null
+    public justClosed: boolean = false
 
     init() {
         const container = document.getElementById('container')
