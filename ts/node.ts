@@ -8,7 +8,7 @@ import { EventManager } from "./evtman"
 import { getHoveredImage, replaceAll, viewFullScreen } from "./util"
 
 const CORNER_R = 10
-const TITLE_H = 20
+export const TITLE_H = 20
 const MIN_SZ = 75
 const MIN_SCALE = 0.4
 const FADE_MS = 400
@@ -68,6 +68,7 @@ export class Node {
     public selected : boolean = false
     public closed : boolean = false
     public inBounds : boolean = false
+    public inBoundsFully : boolean = false
     public contentVisible : boolean = false
     public contentInProgress : boolean = false
     public contentLoading : boolean = false
@@ -105,14 +106,14 @@ export class Node {
         if (grectC || trectC) {
             dc.hoverObj = this
             dc.hoverOff = grect.xy.subPt(dc.mouse).coeff(1 / dc.scale)
-            dc.grabbable = trectC
-            if (trectC) {
+            dc.grabbable = trectC || !this.contentVisible
+            if (dc.grabbable) {
                 dc.hoverCursor = 'grab'
                 dc.grabCursor = 'grabbing'
             } else {
                 dc.hoverCursor = ''
             }
-            if (grectC && !trectC && this.content) {
+            if (grectC && !dc.grabbable && this.content) {
                 const img = getHoveredImage(this.content)
                 if (img && img.classList.contains('viewable')) {
                     dc.hoverCursor = 'pointer'
@@ -210,7 +211,10 @@ export class Node {
     checkContentState() {
         const dc = DC.inst
 
-        const inBounds = rectPt(this.rct.xy.sub(0, TITLE_H), this.rct.wh.add(0, TITLE_H)).overlaps(dc.visibleRect())
+        const rpt = rectPt(this.rct.xy.sub(0, TITLE_H), this.rct.wh.add(0, TITLE_H))
+        this.inBoundsFully = dc.visibleRect().fits(rpt)
+
+        const inBounds = rpt.overlaps(dc.visibleRect())
         if (this.content && inBounds != this.inBounds) {
             $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
             this.inBounds = inBounds

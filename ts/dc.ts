@@ -23,7 +23,7 @@ export class DrawContext {
     public hoverObj: any = null
     public hoverOff: Point2d = zeros()
     public hoverCursor: string = 'grab'
-    public grabCursor: string = 'grabbed'
+    public grabCursor: string = 'grabbing'
     public grabbable: boolean = false
     public grabObj: any = null
     public grabOff: Point2d = zeros()

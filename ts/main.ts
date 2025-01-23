@@ -1,8 +1,9 @@
-import { Node, GrabPoint } from "./node"
+import { Node, GrabPoint, TITLE_H } from "./node"
 import { EventManager } from "./evtman"
-import { pt, rect, zeros } from "./math"
+import { Point2d, pt, rect, zeros } from "./math"
 import { DC } from "./dc"
 import { getCurMillis } from "./util"
+import { sign } from "crypto"
 
 let lastDraw = 0
 let lastUpdate = 0
@@ -13,8 +14,14 @@ let lastMouseDownTime = 0
 let lastResize = 0
 let movedThisMouseDownTime = false
 let zoomedThisMouseDownTime = false
-let mouseIsDown = false
+let mouseIsDown0 = false
+let mouseIsDown2 = false
 let panning = false
+
+let targetPos : Point2d | null = null
+let targetStartPos : Point2d = zeros()
+let targetPosSetTime = 0
+let targetPosTimout = 250
 
 let off = zeros()
 let curOff = zeros()
@@ -60,13 +67,42 @@ function drag() {
     }
 }
 
-function focusOnNode(e: Node) {
+function scrollToFit(n: Node) {
     const dc = DC.inst
-    const idx = nodes.indexOf(e)
+    const vrct = dc.visibleRect()
+    targetStartPos = dc.off
+    targetPos = pt((n.rct.xy.x < vrct.xy.x) ? 
+            (-dc.scale * n.rct.xy.x + 10) : (
+                (n.rct.xy.x + n.rct.wh.x > vrct.xy.x + vrct.wh.x) ? 
+                (-dc.scale * (n.rct.xy.x + n.rct.wh.x - vrct.wh.x) - 10) : 
+                dc.off.x
+            ), (n.rct.xy.y < vrct.xy.y) ? 
+            (-dc.scale * (n.rct.xy.y - TITLE_H) + 10) : (
+                (n.rct.xy.y + n.rct.wh.y > vrct.xy.y + vrct.wh.y) ? 
+                (-dc.scale * (n.rct.xy.y + n.rct.wh.y - vrct.wh.y) - 10) : 
+                dc.off.y
+            )
+        )
+    targetPosSetTime = getCurMillis()
+    EventManager.inst.setEnabled(false)
+}
+
+function scrollToCenter(n: Node) {
+    const dc = DC.inst
+    const vrct = dc.visibleRect()
+    targetStartPos = dc.off
+    targetPos = n.rct.center().sub(innerWidth * 0.5, innerHeight * 0.5).coeff(-dc.scale)
+    targetPosSetTime = getCurMillis()
+    EventManager.inst.setEnabled(false)
+}
+
+function focusOnNode(n: Node, moveIfFits = true) {
+    const dc = DC.inst
+    const idx = nodes.indexOf(n)
     nodes[idx].selected = true
     nodes.splice(idx, 1)
-    nodes.unshift(e)
-    dc.focusObj = e
+    nodes.unshift(n)
+    dc.focusObj = n
     for (let i = 0; i < nodes.length; ++i) {
         const n = nodes[i]
         n.setClass('unselectable', true)
@@ -77,9 +113,49 @@ function focusOnNode(e: Node) {
     dc.focusObj.setClass('unselectable', false)
     dc.focusObj.setClass('selected', true)
     resetSelection()
+
+    if (moveIfFits && !dc.focusObj.inBoundsFully)
+        scrollToFit(dc.focusObj)
+}
+
+function moveFocus(from: Point2d, dir: Point2d, frustum : boolean, final = false) {
+    const dc = DC.inst
+    let minscore = Infinity
+    let minscoreObj = null
+    for (let i = 0; i < nodes.length; ++i) {
+        const n = nodes[i]
+        if (n == dc.focusObj)
+            continue
+        const center = n.rct.center()
+        const xsignok = (dir.x == 0 || Math.sign(center.x - from.x) == Math.sign(dir.x))
+        if (!xsignok) 
+            continue
+        const ysignok = (dir.y == 0 || Math.sign(center.y - from.y) == Math.sign(dir.y))
+        if (!ysignok) 
+            continue
+        const diff = ((dir.x != 0) ? Math.abs(center.x - from.x) : Math.abs(center.y - from.y))
+        const score = diff + (frustum ? (((dir.x == 0) ? Math.abs(center.x - from.x) : Math.abs(center.y - from.y)) / 3) : 0)
+        const frustok = !frustum || ((dir.x != 0) ? (Math.abs(center.y - from.y) < diff * 3) : (Math.abs(center.x - from.x) < diff * 3))
+        if (!frustok) 
+            continue   
+        if (score < minscore) {
+            minscore = score
+            minscoreObj = n
+        }
+    }
+    if (minscoreObj)
+        focusOnNode(minscoreObj)
+    else if (!final) {
+        const vrct = DC.inst.visibleRect()
+        moveFocus(
+            pt((dir.x != 0) ? ((dir.x > 0) ? -1e6 : 1e6) : from.x, (dir.y != 0) ? ((dir.y > 0) ? -1e6 : 1e6) : from.y), 
+            dir, false, true
+        )
+    }
 }
 
 function deselectNodes() {
+    DC.inst.focusObj = null
     for (let i = 0; i < nodes.length; ++i) {
         const n = nodes[i]
         n.setClass('unselectable', true)
@@ -158,28 +234,31 @@ function initInputEvents() {
                 EventManager.inst.setMousePos(point)
                 
                 if (EventManager.inst.enabled) {
-                    lastMouseDownTime = getCurMillis()
-                    dc.mouse = point
-                    dc.mouseDown = true
-                    mouseIsDown = true
-                    movedThisMouseDownTime = false
-                    if (dc.hoverObj) {
-                        if (dc.hoverObj instanceof Node)
-                            focusOnNode(dc.hoverObj);
-                        else if (dc.hoverObj instanceof GrabPoint)
-                            if (dc.hoverObj.nom == "close")
-                                dc.hoverObj.parent.closed = true
-                            else if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
-                                focusOnNode(dc.hoverObj.parent);
-                        
-                        if (dc.grabbable) {
-                            dc.grabObj = dc.hoverObj
-                            dc.grabOff = dc.hoverOff
+                    lastMouseDownPos = point
+                    if (e.button == 2) {
+                        mouseIsDown2 = true
+                        dc.mouse = point
+                        dc.mouseDown = true
+                        panning = true             
+                    } else if (e.button == 0) {
+                        mouseIsDown0 = true
+                        lastMouseDownTime = getCurMillis()
+                        movedThisMouseDownTime = false
+                        if (dc.hoverObj) {
+                            if (dc.hoverObj instanceof Node)
+                                focusOnNode(dc.hoverObj, false);
+                            else if (dc.hoverObj instanceof GrabPoint)
+                                if (dc.hoverObj.nom == "close")
+                                    dc.hoverObj.parent.closed = true
+                                else if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
+                                    focusOnNode(dc.hoverObj.parent, false);
+                            
+                            if (dc.grabbable) {
+                                dc.grabObj = dc.hoverObj
+                                dc.grabOff = dc.hoverOff
+                            }
+                            panning = false
                         }
-                        panning = false
-                    } else {                        
-                        lastMouseDownPos = point
-                        panning = true
                     }
                 }
             }
@@ -192,13 +271,13 @@ function initInputEvents() {
             if (EventManager.inst.enabled) {
                 dc.mouse = lastMousePos
                 movedThisMouseDownTime = lastMousePos.subPt(lastMouseDownPos).norm() > 10
-                if (mouseIsDown) {
-                    drag()                
-                    if (panning) {
-                        curOff = lastMousePos.subPt(lastMouseDownPos)
-                        dc.off = off.addPt(curOff)
-                        updateContent()
-                    }
+                if (mouseIsDown0) {
+                    drag()
+                }                
+                if (mouseIsDown2 && panning) {
+                    curOff = lastMousePos.subPt(lastMouseDownPos)
+                    dc.off = off.addPt(curOff)
+                    updateContent()
                 }
             }
         })
@@ -206,18 +285,22 @@ function initInputEvents() {
             EventManager.inst.notify("mouseup", pt(e.clientX, e.clientY))
 
             if (EventManager.inst.enabled) {
-                mouseIsDown = false
                 dc.mouseDown = false            
-                if (dc.grabObj) {
+                if (e.button == 0 && dc.grabObj) {
                     dc.grabObj = null
-                } else {
+                } else if (e.button == 2) {
                     off = off.addPt(curOff);
+                    curOff = zeros()
+                    panning = false
                 }
-                curOff = zeros()
-                if (!dc.hoverObj && !dc.grabObj && !dc.justClosed && !movedThisMouseDownTime) {
+                if (e.button == 0 && !dc.hoverObj && !dc.grabObj && !dc.justClosed && !movedThisMouseDownTime) {
                     deselectNodes()
                 }
                 dc.justClosed = false
+                if (e.button == 0)
+                    mouseIsDown0 = false
+                if (e.button == 2)
+                    mouseIsDown2 = false
             }
         })
         window.addEventListener('wheel', function(e) {
@@ -237,12 +320,33 @@ function initInputEvents() {
         })
         window.ondragstart = function() {return false}
         jQuery(document).on("keydown", function(e) {
-            if (e.ctrlKey && e.key == 'c') {
-                EventManager.inst.notify("copy", null)
-            } else if (e.ctrlKey && e.key == 'v') {
-                EventManager.inst.notify("paste", null)
-            } else if (e.ctrlKey && e.key == 'a') {
-                EventManager.inst.notify("selectall", null)
+            const vrct = dc.visibleRect()
+            if (!mouseIsDown0 && !mouseIsDown2) {
+                switch(e.which) {
+                case 37: // left
+                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x, vrct.xy.y + vrct.wh.y * 0.5), pt(-1, 0), dc.focusObj);
+                    break;
+                case 38: // up
+                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y + vrct.wh.y), pt(0, -1), dc.focusObj);
+                    break;
+                case 39: // right
+                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x, vrct.xy.y + vrct.wh.y * 0.5), pt(1, 0), dc.focusObj);
+                    break;
+                case 40: // down
+                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y), pt(0, 1), dc.focusObj);
+                    break;
+                default: break;
+                }
+                if (e.ctrlKey && e.key == 'c') {
+                    EventManager.inst.notify("copy", null)
+                } else if (e.ctrlKey && e.key == 'v') {
+                    EventManager.inst.notify("paste", null)
+                } else if (e.ctrlKey && e.key == 'a') {
+                    EventManager.inst.notify("selectall", null)
+                } else if (e.which == 13) {
+                    if (dc.focusObj)
+                        scrollToCenter(dc.focusObj)
+                }
             }
         })
     }
@@ -271,6 +375,19 @@ function render() {
     dc.hoverObj = null
     dc.grabbable = false
 
+    if (targetPos) {
+        const diff = targetPos.subPt(targetStartPos)
+        const ms = getCurMillis() - targetPosSetTime
+        const t = (ms / targetPosTimout)
+        const et = ((t * t) / (2. * (t * t - t) + 1.0));
+        off = dc.off = targetStartPos.addPt(diff.coeff(et))
+        if (ms > targetPosTimout) {
+            targetPos = null
+            EventManager.inst.setEnabled(true)
+        }
+        updateContent()
+    }
+
     const toRm : Array<Node> = []
     nodes.forEach(n => {
         if (n.closed) {
@@ -286,8 +403,8 @@ function render() {
     })
     requestAnimationFrame(render)
     
-    if (dc.hoverObj || dc.grabObj)
-        $('body').css('cursor', dc.grabObj ? dc.grabCursor : dc.hoverCursor)
+    if (dc.hoverObj || dc.grabObj || panning)
+        $('body').css('cursor', panning ? 'grabbing' : (dc.grabObj ? dc.grabCursor : dc.hoverCursor))
     else
         $('body').css('cursor', '')
 
@@ -303,3 +420,14 @@ function render() {
 $(window).on('load', function () {
     init()
 })
+
+//TODO:
+//enter center
+//shift arrows move ctrl-shift arrows resize
+//fullscreen F
+//frame selection
+//focus history, alt arrows navig
+//links
+//Ctrl links
+//enter arrows links navig
+

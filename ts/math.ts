@@ -31,6 +31,10 @@ export class Point2d {
         return p.x == this.x && p.y == this.y
     }
 
+    close(p: Point2d) {
+        return (Math.abs(p.x - this.x) < 1e-6) && (Math.abs(p.y - this.y) < 1e-6)
+    }
+
     addPt(p: Point2d) {
         return new Point2d(this.x + p.x, this.y + p.y)
     }
@@ -130,6 +134,10 @@ export class Rect {
 
     overlaps(rct: Rect) {
         return (rct.xy.x + rct.wh.x > this.xy.x && rct.xy.x < this.xy.x + this.wh.x && rct.xy.y + rct.wh.y > this.xy.y && rct.xy.y < this.xy.y + this.wh.y)
+    }
+
+    fits(rct: Rect) {
+        return (rct.xy.x > this.xy.x && rct.xy.x + rct.wh.x < this.xy.x + this.wh.x && rct.xy.y > this.xy.y && rct.xy.y + rct.wh.y < this.xy.y + this.wh.y)
     }
 }
 export function rect(x: number, y: number, w: number, h: number): Rect { return new Rect(pt(x, y), sz(w, h)) }
