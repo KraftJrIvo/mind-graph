@@ -89,9 +89,8 @@ function scrollToFit(n: Node) {
 
 function scrollToCenter(n: Node) {
     const dc = DC.inst
-    const vrct = dc.visibleRect()
     targetStartPos = dc.off
-    targetPos = n.rct.center().sub(innerWidth * 0.5, innerHeight * 0.5).coeff(-dc.scale)
+    targetPos = n.rct.center().sub(innerWidth * 0.5/dc.scale, innerHeight * 0.5/dc.scale).coeff(-dc.scale)
     targetPosSetTime = getCurMillis()
     EventManager.inst.setEnabled(false)
 }
