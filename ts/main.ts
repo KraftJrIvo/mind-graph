@@ -1,6 +1,6 @@
 import { Node, GrabPoint, TITLE_H } from "./node"
 import { EventManager } from "./evtman"
-import { Point2d, pt, rect, zeros } from "./math"
+import { Point2d, pt, Rect, rect, rect_zeros, rectPt, zeros } from "./math"
 import { DC } from "./dc"
 import { getCurMillis } from "./util"
 import { sign } from "crypto"
@@ -22,6 +22,15 @@ let targetPos : Point2d | null = null
 let targetStartPos : Point2d = zeros()
 let targetPosSetTime = 0
 let targetPosTimout = 250
+
+let targetRszNode : Node | null = null
+let targetRszRect : Rect = rect_zeros()
+let targetRszStartRect : Rect = rect_zeros()
+let lastRszFSrect : Rect = rect_zeros()
+let lastRszFStitle : string = ""
+let targetRszSetTime = 0
+let targetRszTimout = 250
+let targetRszFS = false
 
 let off = zeros()
 let curOff = zeros()
@@ -178,6 +187,81 @@ function removeNode(node: Node) {
     dc.justClosed = true
 }
 
+function zoom(delta: number, towards: Point2d) {
+    const dc = DC.inst
+    const coeff = 100 / Math.abs(delta);
+    const newScale = dc.scale - 0.01 * delta * coeff * dc.scale / 10.0;
+    if (newScale != dc.scale) {
+        off = off.subPt(((towards.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
+        dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
+        dc.scale = newScale
+        drag()
+        updateContent()
+    }
+}
+
+function updateTargetPose() {
+    const dc = DC.inst
+    if (!targetPos)
+        return
+    const diff = targetPos.subPt(targetStartPos)
+    const ms = getCurMillis() - targetPosSetTime
+    const t = (ms / targetPosTimout)
+    const et = ((t * t) / (2. * (t * t - t) + 1.0));
+    off = dc.off = targetStartPos.addPt(diff.coeff(et))
+    if (ms > targetPosTimout) {
+        targetPos = null
+        EventManager.inst.setEnabled(true)
+    }
+    updateContent()
+}
+
+function toggleFullscreen(n: Node) {
+    focusOnNode(n, false)
+    const dc = DC.inst
+    targetRszNode = n
+    targetRszStartRect = n.rct
+    targetRszSetTime = getCurMillis()
+    targetRszTimout = 250
+    targetRszFS = true
+    if (dc.fsNode) {
+        targetRszRect = lastRszFSrect
+    } else {
+        lastRszFSrect = rectPt(n.rct.xy, n.rct.wh)
+        lastRszFStitle = document.title
+        targetRszRect = dc.visibleRect()
+    }
+    EventManager.inst.setEnabled(false)
+}
+
+function updateNodeTargetRsz() {
+    if (!targetRszNode)
+        return
+    const dc = DC.inst
+    const ms = getCurMillis() - targetRszSetTime
+    const t = (ms / targetRszTimout)
+    const et = ((t * t) / (2. * (t * t - t) + 1.0));
+    const n = targetRszNode as Node
+    const diffxy = targetRszRect.xy.subPt(targetRszStartRect.xy)
+    const diffwh = targetRszRect.wh.subPt(targetRszStartRect.wh)
+    n.rct.xy = targetRszStartRect.xy.addPt(diffxy.coeff(et))
+    n.rct.wh = targetRszStartRect.wh.addPt(diffwh.coeff(et))
+    if (ms > targetRszTimout) {
+        targetRszNode = null
+        if (targetRszFS) {
+            if (dc.fsNode) {
+                dc.fsNode = null
+                document.title = lastRszFStitle
+            } else {
+                dc.fsNode = n
+                document.title = n.title
+            }
+        }
+        EventManager.inst.setEnabled(true)
+    }
+    updateContent()
+}
+
 function initInputEvents() {
     const dc = DC.inst
 
@@ -201,22 +285,6 @@ function initInputEvents() {
                 EventManager.inst.notify("rclick", pt(e.clientX, e.clientY))
             }
         }, false)
-        window.onkeydown = (e) => {
-            e = e || window.event
-            if (e.keyCode == 38) {
-                EventManager.inst.notify("keypress", "up")
-            } else if (e.keyCode == 40) {
-                EventManager.inst.notify("keypress", "down")
-            } else if (e.keyCode == 37) {
-                EventManager.inst.notify("keypress", "left")
-            } else if (e.keyCode == 39) {
-                EventManager.inst.notify("keypress", "right")
-            } else if (e.keyCode == 16) {
-                EventManager.inst.shift = true
-            } else if (e.keyCode == 82) {
-                EventManager.inst.notify("keypress", "r")
-            }
-        }
         window.onkeyup = (e) => {
             e = e || window.event
             if (e.keyCode == 16) {
@@ -232,7 +300,7 @@ function initInputEvents() {
                 EventManager.inst.notify("mousedown", point)
                 EventManager.inst.setMousePos(point)
                 
-                if (EventManager.inst.enabled) {
+                if (EventManager.inst.enabled && !dc.fsNode) {
                     lastMouseDownPos = point
                     if (e.button == 2) {
                         mouseIsDown2 = true
@@ -249,6 +317,8 @@ function initInputEvents() {
                             else if (dc.hoverObj instanceof GrabPoint)
                                 if (dc.hoverObj.nom == "close")
                                     dc.hoverObj.parent.closed = true
+                                else if (dc.hoverObj.nom == "pin")
+                                    dc.hoverObj.parent.debug()
                                 else if (dc.hoverObj.parent && dc.hoverObj.parent instanceof Node)
                                     focusOnNode(dc.hoverObj.parent, false);
                             
@@ -267,7 +337,7 @@ function initInputEvents() {
             EventManager.inst.notify("mousemove", lastMousePos)
             EventManager.inst.setMousePos(lastMousePos)
             
-            if (EventManager.inst.enabled) {
+            if (EventManager.inst.enabled && !dc.fsNode) {
                 dc.mouse = lastMousePos
                 movedThisMouseDownTime = lastMousePos.subPt(lastMouseDownPos).norm() > 10
                 if (mouseIsDown0) {
@@ -283,7 +353,7 @@ function initInputEvents() {
         window.addEventListener('mouseup', function(e) {
             EventManager.inst.notify("mouseup", pt(e.clientX, e.clientY))
 
-            if (EventManager.inst.enabled) {
+            if (EventManager.inst.enabled && !dc.fsNode) {
                 dc.mouseDown = false            
                 if (e.button == 0 && dc.grabObj) {
                     dc.grabObj = null
@@ -303,48 +373,61 @@ function initInputEvents() {
             }
         })
         window.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault()
+            }
             EventManager.inst.notify("wheel", pt(e.deltaX, -e.deltaY))
             
-            if (EventManager.inst.enabled) {
+            if (EventManager.inst.enabled && !dc.fsNode) {
                 lastMousePos = pt(e.clientX, e.clientY)
-                const newScale = dc.scale - 0.01 * e.deltaY * dc.scale / 10.0;
-                if (newScale != dc.scale) {
-                    off = off.subPt(((lastMousePos.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
-                    dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
-                    dc.scale = newScale
-                    drag()
-                    updateContent()
-                }
+                zoom(e.deltaY, lastMousePos)
             }
-        })
+        }, { passive: false })
         window.ondragstart = function() {return false}
         jQuery(document).on("keydown", function(e) {
-            const vrct = dc.visibleRect()
-            if (!mouseIsDown0 && !mouseIsDown2) {
-                switch(e.which) {
-                case 37: // left
-                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x, vrct.xy.y + vrct.wh.y * 0.5), pt(-1, 0), dc.focusObj);
-                    break;
-                case 38: // up
-                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y + vrct.wh.y), pt(0, -1), dc.focusObj);
-                    break;
-                case 39: // right
-                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x, vrct.xy.y + vrct.wh.y * 0.5), pt(1, 0), dc.focusObj);
-                    break;
-                case 40: // down
-                    moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y), pt(0, 1), dc.focusObj);
-                    break;
-                default: break;
-                }
-                if (e.ctrlKey && e.key == 'c') {
-                    EventManager.inst.notify("copy", null)
-                } else if (e.ctrlKey && e.key == 'v') {
-                    EventManager.inst.notify("paste", null)
-                } else if (e.ctrlKey && e.key == 'a') {
-                    EventManager.inst.notify("selectall", null)
-                } else if (e.which == 13) {
-                    if (dc.focusObj)
-                        scrollToCenter(dc.focusObj)
+            if (EventManager.inst.enabled) {
+                const vrct = dc.visibleRect()
+                if (!mouseIsDown0 && !mouseIsDown2) {
+                    if (!dc.fsNode) {
+                        switch(e.which) {
+                            case 37:
+                            EventManager.inst.notify("keypress", "left")
+                            moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x, vrct.xy.y + vrct.wh.y * 0.5), pt(-1, 0), dc.focusObj);
+                            break;
+                        case 38:
+                            EventManager.inst.notify("keypress", "up")
+                            moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y + vrct.wh.y), pt(0, -1), dc.focusObj);
+                            break;
+                        case 39:
+                            EventManager.inst.notify("keypress", "right")
+                            moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x, vrct.xy.y + vrct.wh.y * 0.5), pt(1, 0), dc.focusObj);
+                            break;
+                        case 40: // down
+                            EventManager.inst.notify("keypress", "down")
+                            moveFocus(dc.focusObj ? dc.focusObj.rct.center() : pt(vrct.xy.x + vrct.wh.x * 0.5, vrct.xy.y), pt(0, 1), dc.focusObj);
+                            break;
+                        default: break;
+                        }
+                    }
+                    if (e.ctrlKey && e.key == 'c') {
+                        EventManager.inst.notify("copy", null)
+                    } else if (e.ctrlKey && e.key == 'v') {
+                        EventManager.inst.notify("paste", null)
+                    } else if (e.ctrlKey && e.key == 'a') {
+                        EventManager.inst.notify("selectall", null)
+                    } else if (e.which == 13) {
+                        if (dc.focusObj && !dc.fsNode)
+                            scrollToCenter(dc.focusObj)
+                    } else if (dc.focusObj && dc.focusObj instanceof Node && e.key == 'f') {
+                        toggleFullscreen(dc.focusObj as Node)
+                    }
+                    if (e.ctrlKey && (e.which == 61 || e.which == 107 || e.which == 173 || e.which == 109  || e.which == 187  || e.which == 189  ) ) {
+                        e.preventDefault();
+                        if (e.which == 109 || e.which == 173 || e.which == 189)
+                            zoom(100, pt(window.innerWidth, window.innerHeight).coeff(0.5));
+                        else if (e.which == 107 || e.which == 61 || e.which == 187)
+                            zoom(-100, pt(window.innerWidth, window.innerHeight).coeff(0.5));
+                    }
                 }
             }
         })
@@ -374,18 +457,11 @@ function render() {
     dc.hoverObj = null
     dc.grabbable = false
 
-    if (targetPos) {
-        const diff = targetPos.subPt(targetStartPos)
-        const ms = getCurMillis() - targetPosSetTime
-        const t = (ms / targetPosTimout)
-        const et = ((t * t) / (2. * (t * t - t) + 1.0));
-        off = dc.off = targetStartPos.addPt(diff.coeff(et))
-        if (ms > targetPosTimout) {
-            targetPos = null
-            EventManager.inst.setEnabled(true)
-        }
-        updateContent()
-    }
+    if (targetPos)
+        updateTargetPose()
+    
+    if (targetRszNode)
+        updateNodeTargetRsz()
 
     const toRm : Array<Node> = []
     nodes.forEach(n => {
@@ -421,10 +497,11 @@ $(window).on('load', function () {
 })
 
 //TODO:
-//enter center
-//shift arrows move ctrl-shift arrows resize
-//fullscreen F
-//frame selection
+// fix fs view
+// fix image view fade
+//ctrl arrows move ctrl+shift arrows resize\
+//wasd and shift+wasd pan
+
 //focus history, alt arrows navig
 //links
 //Ctrl links

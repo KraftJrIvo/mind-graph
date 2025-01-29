@@ -1,5 +1,6 @@
 import { Point2d, pt, rect, Rect, rectPt, zeros } from "./math"
 import { Theme } from "./theme"
+import { Node } from "./node"
 
 import * as THREE from 'three'
 import { strToRgb } from "./util"
@@ -29,6 +30,7 @@ export class DrawContext {
     public grabOff: Point2d = zeros()
     public focusObj: any = null
     public justClosed: boolean = false
+    public fsNode: Node | null = null
 
     init() {
         const container = document.getElementById('container')

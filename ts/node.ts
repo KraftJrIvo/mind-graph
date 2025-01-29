@@ -10,7 +10,7 @@ import { getHoveredImage, replaceAll, viewFullScreen } from "./util"
 const CORNER_R = 10
 export const TITLE_H = 20
 const MIN_SZ = 75
-const MIN_SCALE = 0.4
+const MIN_W_RATIO = 0.1
 const FADE_MS = 400
 
 export class GrabPoint {
@@ -208,6 +208,12 @@ export class Node {
         }
     }
 
+    debug() {
+        if (this.content) {
+            //...
+        }
+    }
+
     checkContentState() {
         const dc = DC.inst
 
@@ -215,53 +221,58 @@ export class Node {
         this.inBoundsFully = dc.visibleRect().fits(rpt)
 
         const inBounds = rpt.overlaps(dc.visibleRect())
-        if (this.content && inBounds != this.inBounds) {
-            $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
-            this.inBounds = inBounds
-        }
+        
+        if (this.content) {
+        
+            if (inBounds != this.inBounds) {
+                $(this.content).stop().fadeTo(FADE_MS, inBounds ? 1 : 0)
+                this.inBounds = inBounds
+            }
 
-        if (!this.contentInProgress) {
-            const contVis = inBounds && (dc.scale >= MIN_SCALE)
-            if (contVis != this.contentVisible) {
-                if (contVis && this.contentLoaded && this.content) {
-                    const c = $(this.content).children().first()    
-                    c.css('white-space', 'nowrap')                    
-                    c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
-                        $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
-                        $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
-                    })
-                    setTimeout(this.finishMovingContent.bind(this), FADE_MS + 1)
-                    this.contentVisible = true
-                    this.contentInProgress = true
-                } else {
-                    if (contVis && !this.contentLoading) {
-                        this.contentLoading = true
-                        let xhr = new XMLHttpRequest()
-                        xhr.open('GET', `content/${this.nom}.html`)
-                        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
-                        xhr.setRequestHeader('Expires', 'Thu, 1 Jan 1970 00:00:00 GMT')
-                        xhr.setRequestHeader('Pragma', 'no-cache')
-                        xhr.send()
-                        xhr.onload = () => {
-                            if (xhr.status == 200) {
-                                const str = (xhr.response as string)
-                                this.fillContent(str)
-                                //setTimeout(this.fillContent.bind(this, str), 1000)
-                            } else {
-                                alert(`error ${xhr.status}: ${xhr.statusText}`)
-                            }
-                        }
-                    } else if (this.content) {
-                        const c = $(this.content).children().first()
-                        const tms = this.contentLoaded ? FADE_MS : 0
-                        c.find('.node-head-icon').fadeTo(tms / 2, 0)
-                        c.next().stop().fadeTo(tms / 2, 0, function() {
-                            $(this).prev().css('white-space', 'unset')
-                            $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, tms / 2)
+            if (!this.contentInProgress) {
+                const contEl = $(this.content).children()[1] as HTMLDivElement
+                const contVis = inBounds && contEl.clientWidth * dc.scale > MIN_W_RATIO * window.innerHeight
+                if (contVis != this.contentVisible) {
+                    if (contVis && this.contentLoaded && this.content) {
+                        const c = $(this.content).children().first()    
+                        c.css('white-space', 'nowrap')                    
+                        c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
+                            $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
+                            $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
                         })
-                        setTimeout(this.finishMovingContent.bind(this), tms)
-                        this.contentVisible = false
+                        setTimeout(this.finishMovingContent.bind(this), FADE_MS + 1)
+                        this.contentVisible = true
                         this.contentInProgress = true
+                    } else {
+                        if (contVis && !this.contentLoading) {
+                            this.contentLoading = true
+                            let xhr = new XMLHttpRequest()
+                            xhr.open('GET', `content/${this.nom}.html`)
+                            xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, max-age=0')
+                            xhr.setRequestHeader('Expires', 'Thu, 1 Jan 1970 00:00:00 GMT')
+                            xhr.setRequestHeader('Pragma', 'no-cache')
+                            xhr.send()
+                            xhr.onload = () => {
+                                if (xhr.status == 200) {
+                                    const str = (xhr.response as string)
+                                    this.fillContent(str)
+                                    //setTimeout(this.fillContent.bind(this, str), 1000)
+                                } else {
+                                    alert(`error ${xhr.status}: ${xhr.statusText}`)
+                                }
+                            }
+                        } else if (this.content) {
+                            const c = $(this.content).children().first()
+                            const tms = this.contentLoaded ? FADE_MS : 0
+                            c.find('.node-head-icon').fadeTo(tms / 2, 0)
+                            c.next().stop().fadeTo(tms / 2, 0, function() {
+                                $(this).prev().css('white-space', 'unset')
+                                $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, tms / 2)
+                            })
+                            setTimeout(this.finishMovingContent.bind(this), tms)
+                            this.contentVisible = false
+                            this.contentInProgress = true
+                        }
                     }
                 }
             }
