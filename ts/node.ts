@@ -1,14 +1,14 @@
 import {ones, Point2d, pt, rect, Rect, rect_zeros, rectPt, zeros} from "./math"
-import { clbkself } from "./types"
+import { Callback, clbkself } from "./types"
 import { DC } from "./dc"
 
 import { typesetMathJax } from "../js/mathjax"
 import { EventManager } from "./evtman"
 
-import { getHoveredImage, replaceAll, viewFullScreen } from "./util"
+import { getCurMillis, getHoveredImage, replaceAll, viewFullScreen } from "./util"
 
-const CORNER_R = 10
-export const TITLE_H = 20
+export const CORNER_R = 12.5
+export const TITLE_H = 25
 const MIN_SZ = 75
 const MIN_W_RATIO = 0.1
 const FADE_MS = 400
@@ -78,6 +78,15 @@ export class Node {
     public pinButton : GrabPoint = new GrabPoint("pin", zeros(), CORNER_R + 2, this, 'pointer')
     public closeButton : GrabPoint = new GrabPoint("close", zeros(), CORNER_R + 2, this, 'pointer')
     private _evt_click_idx: number
+
+    public targetRsz = false
+    public targetRszRect : Rect = rect_zeros()
+    public targetRszStartRect : Rect = rect_zeros()
+    public lastRszFSrect : Rect = rect_zeros()
+    public targetRszSetTime = 0
+    public targetRszTimout = 250
+    public targetRszCallback : Callback | null = null
+    
 
     constructor(nom : string, rct : Rect, contentId : string = "") {
         this.nom = nom
@@ -165,18 +174,19 @@ export class Node {
         let div = this.content;
         if (!div) {
             div = document.createElement('div')
-            document.body.appendChild(div)              
+            document.getElementById('container')?.appendChild(div)              
         }
         div.classList.add('node')
         div.classList.add('math')
         if (str) {
             $(div).find('.node-title').html(this.title)
-            $(div).find('.node-content').html(this.body)
+            $(div).find('.node-content-inner').html(this.body)
         } else {
-                const html = `
+            const html = `
                 <div class="node-head"><span class="node-title">${this.title}</span></div>
                 <div class="node-content">
-                    ${this.body}
+                    <div class="node-content-inner">
+                    </div>
                 </div>
             `
             div.innerHTML = html;
@@ -231,10 +241,13 @@ export class Node {
 
             if (!this.contentInProgress) {
                 const contEl = $(this.content).children()[1] as HTMLDivElement
-                const contVis = inBounds && contEl.clientWidth * dc.scale > MIN_W_RATIO * window.innerHeight
+                const noFSobstruc = (!dc.fsNode || dc.fsNode == this)
+                const contVis = noFSobstruc && inBounds && (contEl.clientWidth * dc.scale > MIN_W_RATIO * window.innerHeight)
                 if (contVis != this.contentVisible) {
                     if (contVis && this.contentLoaded && this.content) {
                         const c = $(this.content).children().first()    
+                        const headEl = $(this.content).children()[0] as HTMLDivElement
+                        headEl.style.justifyContent = 'space-between'
                         c.css('white-space', 'nowrap')                    
                         c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
                             $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
@@ -256,7 +269,6 @@ export class Node {
                                 if (xhr.status == 200) {
                                     const str = (xhr.response as string)
                                     this.fillContent(str)
-                                    //setTimeout(this.fillContent.bind(this, str), 1000)
                                 } else {
                                     alert(`error ${xhr.status}: ${xhr.statusText}`)
                                 }
@@ -264,6 +276,8 @@ export class Node {
                         } else if (this.content) {
                             const c = $(this.content).children().first()
                             const tms = this.contentLoaded ? FADE_MS : 0
+                            const headEl = $(this.content).children()[0] as HTMLDivElement
+                            headEl.style.justifyContent = 'center'            
                             c.find('.node-head-icon').fadeTo(tms / 2, 0)
                             c.next().stop().fadeTo(tms / 2, 0, function() {
                                 $(this).prev().css('white-space', 'unset')
@@ -277,6 +291,9 @@ export class Node {
                 }
             }
         }
+
+        if (this.targetRsz)
+            this.updateTargetRsz()
     }
 
     setZ(z: number) {
@@ -301,7 +318,44 @@ export class Node {
             if (cbody) {
                 (cbody as HTMLDivElement).style.height = (((1 - (TITLE_H) / (this.rct.wh.y + TITLE_H))) - 1) + 'px'
             }
+            if (this.contentVisible) {
+                const contEl = $(this.content).find('.node-content').first()[0] as HTMLDivElement
+                const firstContEl = $(this.content).find('.node-content-inner').children().first()[0] as HTMLDivElement
+                const lastContEl = $(this.content).find('.node-content-inner').children().last()[0] as HTMLDivElement
+                if (lastContEl) {
+                    const cr = contEl.getBoundingClientRect()
+                    const fcer = firstContEl.getBoundingClientRect()
+                    const lcer = lastContEl.getBoundingClientRect()
+                    const h = lcer.bottom - fcer.top
+                    const hdiff = Math.max(0, (cr.height - h) * 0.5)
+                    const topmarg = hdiff / dc.scale//(Math.abs(cr.height - (lcer.bottom - fcer.top)) * 0.5)
+                    let isContentOverflowing = (lcer.bottom - hdiff) > (cr.bottom - CORNER_R * 4 * DC.inst.scale)
+                    const contInEl = $(this.content).find('.node-content-inner').first()
+                    if (isContentOverflowing) {
+                        contInEl.css('mask-image', 'linear-gradient(0deg, transparent 25px, #000 50px)')
+                    } else {
+                        contInEl.css('mask-image', '')                        
+                    }
+                    contInEl.css('margin-top', topmarg + 'px')
+                }
+            }
         }
+    }
+    
+    public updateTargetRsz() {
+        const ms = getCurMillis() - this.targetRszSetTime
+        const t = (ms / this.targetRszTimout)
+        const et = ((t * t) / (2. * (t * t - t) + 1.0));
+        const diffxy = this.targetRszRect.xy.subPt(this.targetRszStartRect.xy)
+        const diffwh = this.targetRszRect.wh.subPt(this.targetRszStartRect.wh)
+        this.rct.xy = this.targetRszStartRect.xy.addPt(diffxy.coeff(et))
+        this.rct.wh = this.targetRszStartRect.wh.addPt(diffwh.coeff(et))
+        if (ms > this.targetRszTimout) {
+            this.targetRsz = false
+            if (this.targetRszCallback)
+                this.targetRszCallback(this)
+        }
+        this.updateContent()
     }
 
     getShortTitle() {
@@ -333,11 +387,11 @@ export class Node {
             titleEl.html(this.title)
 
             let isTitleOverflowing = headEl.clientWidth < headEl.scrollWidth
-            if (isTitleOverflowing)
+            if (isTitleOverflowing) {
                 titleEl.html(this.getShortTitle())
-            else
+            } else {
                 titleEl.html(this.title)
-            
+            }
         }
     }
 

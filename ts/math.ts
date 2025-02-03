@@ -99,6 +99,10 @@ export class Point2d {
     norm() {
         return Math.hypot(this.x, this.y)
     }
+
+    clone() {
+        return pt(this.x, this.y)
+    }
 };
 export function pt(x: number, y: number): Point2d {return new Point2d(x, y)}
 export function zeros(): Point2d {return new Point2d(0, 0)}
@@ -138,6 +142,10 @@ export class Rect {
 
     fits(rct: Rect) {
         return (rct.xy.x > this.xy.x && rct.xy.x + rct.wh.x < this.xy.x + this.wh.x && rct.xy.y > this.xy.y && rct.xy.y + rct.wh.y < this.xy.y + this.wh.y)
+    }
+
+    clone() {
+        return rectPt(this.xy.clone(), this.wh.clone())
     }
 }
 export function rect(x: number, y: number, w: number, h: number): Rect { return new Rect(pt(x, y), sz(w, h)) }

@@ -54,8 +54,9 @@ img.viewable {
     overflow: hidden;
 }
 
-.node.selected {
+.node.selection {
     outline-style: solid;
+    pointer-events: none;
 }
 
 .node-head {
@@ -74,11 +75,11 @@ img.viewable {
 }
 
 .node-head-icon {
-    width: 20px;
-    height: 20px;
-    min-width: 20px;
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
     vertical-align: middle;
-    border-radius: 10px;
+    border-radius: 12.5px;
 }
 
 .node-head-icon-hover {
@@ -88,7 +89,14 @@ img.viewable {
 .node-content {
     padding: 10px;
     height: 100%;
+    text-align: center;
+}
+
+.node-content-inner {
+    height: 100%;
     text-align: justify;
+    max-width: 40rem;
+    margin: 0 auto;
 }
 
 .definition {

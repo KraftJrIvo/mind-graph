@@ -1,4 +1,4 @@
-import { Node, GrabPoint, TITLE_H } from "./node"
+import { Node, GrabPoint, TITLE_H, CORNER_R } from "./node"
 import { EventManager } from "./evtman"
 import { Point2d, pt, Rect, rect, rect_zeros, rectPt, zeros } from "./math"
 import { DC } from "./dc"
@@ -7,6 +7,8 @@ import { sign } from "crypto"
 
 let lastDraw = 0
 let lastUpdate = 0
+
+let winSize : Point2d = zeros()
 
 let lastMousePos = zeros()
 let lastMouseDownPos = zeros()
@@ -19,35 +21,49 @@ let mouseIsDown2 = false
 let panning = false
 
 let targetPos : Point2d | null = null
+let targetStartScale = 1.0
+let targetScale = 1.0
 let targetStartPos : Point2d = zeros()
 let targetPosSetTime = 0
 let targetPosTimout = 250
 
-let targetRszNode : Node | null = null
-let targetRszRect : Rect = rect_zeros()
-let targetRszStartRect : Rect = rect_zeros()
-let lastRszFSrect : Rect = rect_zeros()
-let lastRszFStitle : string = ""
-let targetRszSetTime = 0
-let targetRszTimout = 250
-let targetRszFS = false
+let lastRszFStitle = ""
+let lastRszScale = 1.0
+let lastRszPos = zeros()
 
 let off = zeros()
 let curOff = zeros()
 
 let nodes = new Array<Node>()
 
+let selectionTime = 0
+let selectionFrame : HTMLDivElement | null = null
+let selectionStartFrame : Rect | null = null
+let selectionFrameRect : Rect = rect_zeros()
+
+function insertAfter(referenceNode : any, newNode : any) {
+    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+}
+
 function init() {
     DC.inst.init()
     updateCanvas()
-    DC.inst.off = off = pt(window.innerWidth, window.innerHeight).coeff(0.5)
+    winSize = pt(window.innerWidth, window.innerHeight)
+    DC.inst.off = off = winSize.coeff(0.5)
 
     initDeviceStatus()
     initInputEvents()
 
-    nodes.push(new Node("math", rect(-146, -81, 300, 379)))
-    nodes.push(new Node("sets", rect(256, -159, 276, 105)))
-    nodes.push(new Node("alg", rect(255, 93, 314, 263)))
+    nodes.push(new Node('math', rect(-146, -81, 300, 379)))
+    nodes.push(new Node('sets', rect(256, -159, 276, 105)))
+    nodes.push(new Node('alg', rect(255, 93, 314, 263)))
+
+    const container = document.getElementById('container')
+    selectionFrame = document.createElement('div')
+    selectionFrame.id = 'selectionFrame'
+    selectionFrame.classList.add("node", 'selection')
+    selectionFrame.style.visibility = 'false'
+    insertAfter(container, selectionFrame)
 
     render()
 }
@@ -80,15 +96,17 @@ function scrollToFit(n: Node) {
     const dc = DC.inst
     const vrct = dc.visibleRect()
     targetStartPos = dc.off
+    targetStartScale = dc.scale
+    targetScale = targetStartScale
     targetPos = pt((n.rct.xy.x < vrct.xy.x) ? 
             (-dc.scale * n.rct.xy.x + 10) : (
                 (n.rct.xy.x + n.rct.wh.x > vrct.xy.x + vrct.wh.x) ? 
-                (-dc.scale * (n.rct.xy.x + n.rct.wh.x - vrct.wh.x) - 10) : 
+                (-targetScale * (n.rct.xy.x + n.rct.wh.x - vrct.wh.x) - 10) : 
                 dc.off.x
             ), (n.rct.xy.y < vrct.xy.y) ? 
             (-dc.scale * (n.rct.xy.y - TITLE_H) + 10) : (
                 (n.rct.xy.y + n.rct.wh.y > vrct.xy.y + vrct.wh.y) ? 
-                (-dc.scale * (n.rct.xy.y + n.rct.wh.y - vrct.wh.y) - 10) : 
+                (-targetScale * (n.rct.xy.y + n.rct.wh.y - vrct.wh.y) - 10) : 
                 dc.off.y
             )
         )
@@ -96,16 +114,28 @@ function scrollToFit(n: Node) {
     EventManager.inst.setEnabled(false)
 }
 
-function scrollToCenter(n: Node) {
+function scrollToCenter(n: Node, resetScale = false) {
     const dc = DC.inst
     targetStartPos = dc.off
-    targetPos = n.rct.center().sub(innerWidth * 0.5/dc.scale, innerHeight * 0.5/dc.scale).coeff(-dc.scale)
+    targetStartScale = dc.scale
+    targetScale = resetScale ? 1.0 : dc.scale
+    targetPos = n.rct.center().sub(innerWidth * 0.5/targetScale, innerHeight * 0.5/targetScale).coeff(-targetScale)
     targetPosSetTime = getCurMillis()
     EventManager.inst.setEnabled(false)
 }
 
-function focusOnNode(n: Node, moveIfFits = true) {
+function focusOnNode(n: Node, moveIfFits = true, snap = true) {
     const dc = DC.inst
+
+    if (dc.focusObj == n)
+        return
+
+    if (dc.focusObj && selectionFrame) {
+        selectionTime = getCurMillis()
+        selectionStartFrame = selectionFrameRect.clone()
+        EventManager.inst.enabled = false
+    }
+
     const idx = nodes.indexOf(n)
     nodes[idx].selected = true
     nodes.splice(idx, 1)
@@ -114,13 +144,21 @@ function focusOnNode(n: Node, moveIfFits = true) {
     for (let i = 0; i < nodes.length; ++i) {
         const n = nodes[i]
         n.setClass('unselectable', true)
-        n.setClass('selected', false)
         n.setZ(nodes.length - i)
         n.selected = false
     }
     dc.focusObj.setClass('unselectable', false)
-    dc.focusObj.setClass('selected', true)
     resetSelection()
+
+    if (selectionFrame) {
+        const sf = $(selectionFrame)
+        if ((sf.css('display') == 'none') || snap) {
+            EventManager.inst.enabled = true
+            selectionTime = getCurMillis() - 250
+            selectionStartFrame = rectPt(dc.focusObj.rct.xy.subPt(pt(0, 1).coeff(TITLE_H)), dc.focusObj.rct.wh)
+            sf.show()
+        }
+    }
 
     if (moveIfFits && !dc.focusObj.inBoundsFully)
         scrollToFit(dc.focusObj)
@@ -141,8 +179,8 @@ function moveFocus(from: Point2d, dir: Point2d, frustum : boolean, final = false
         const ysignok = (dir.y == 0 || Math.sign(center.y - from.y) == Math.sign(dir.y))
         if (!ysignok) 
             continue
-        const diff = ((dir.x != 0) ? Math.abs(center.x - from.x) : Math.abs(center.y - from.y))
-        const score = diff + (frustum ? (((dir.x == 0) ? Math.abs(center.x - from.x) : Math.abs(center.y - from.y)) / 3) : 0)
+        const diff = ((dir.x != 0) ? Math.abs(center.x - from.x) : Math.abs(center.y - from.y)) / 3
+        const score = diff + (frustum ? (((dir.x == 0) ? Math.abs(center.x - from.x) : (Math.abs(center.y - from.y)))) : 0)        
         const frustok = !frustum || ((dir.x != 0) ? (Math.abs(center.y - from.y) < diff * 3) : (Math.abs(center.x - from.x) < diff * 3))
         if (!frustok) 
             continue   
@@ -152,7 +190,7 @@ function moveFocus(from: Point2d, dir: Point2d, frustum : boolean, final = false
         }
     }
     if (minscoreObj)
-        focusOnNode(minscoreObj)
+        focusOnNode(minscoreObj, true, !dc.focusObj)
     else if (!final) {
         const vrct = DC.inst.visibleRect()
         moveFocus(
@@ -167,10 +205,11 @@ function deselectNodes() {
     for (let i = 0; i < nodes.length; ++i) {
         const n = nodes[i]
         n.setClass('unselectable', true)
-        n.setClass('selected', false)
         n.selected = false
     }
     resetSelection()
+
+    if (selectionFrame) $(selectionFrame).hide()
 }
 
 function removeNode(node: Node) {
@@ -189,14 +228,19 @@ function removeNode(node: Node) {
 
 function zoom(delta: number, towards: Point2d) {
     const dc = DC.inst
-    const coeff = 100 / Math.abs(delta);
-    const newScale = dc.scale - 0.01 * delta * coeff * dc.scale / 10.0;
+    const coeff = 100 / Math.abs(delta)
+    const newScale = (delta == 0) ? (1.0) : (dc.scale - 0.01 * delta * coeff * dc.scale / 10.0);
     if (newScale != dc.scale) {
         off = off.subPt(((towards.subPt(off).subPt(curOff)).coeff(1.0 / dc.scale)).coeff(newScale - dc.scale))
         dc.off = off.addPt(curOff.coeff(1 / (newScale - dc.scale)))
         dc.scale = newScale
         drag()
-        updateContent()
+        if (dc.fsNode) {
+            dc.fsNode.rct = dc.visibleRect()
+            dc.fsNode.updateContent()
+        } else {
+            updateContent()
+        }
     }
 }
 
@@ -207,7 +251,8 @@ function updateTargetPose() {
     const diff = targetPos.subPt(targetStartPos)
     const ms = getCurMillis() - targetPosSetTime
     const t = (ms / targetPosTimout)
-    const et = ((t * t) / (2. * (t * t - t) + 1.0));
+    const et = ((t * t) / (2. * (t * t - t) + 1.0));    
+    dc.scale = targetStartScale + (targetScale - targetStartScale) * et
     off = dc.off = targetStartPos.addPt(diff.coeff(et))
     if (ms > targetPosTimout) {
         targetPos = null
@@ -216,50 +261,74 @@ function updateTargetPose() {
     updateContent()
 }
 
-function toggleFullscreen(n: Node) {
-    focusOnNode(n, false)
+function updateSelectionFrame() {
     const dc = DC.inst
-    targetRszNode = n
-    targetRszStartRect = n.rct
-    targetRszSetTime = getCurMillis()
-    targetRszTimout = 250
-    targetRszFS = true
-    if (dc.fsNode) {
-        targetRszRect = lastRszFSrect
-    } else {
-        lastRszFSrect = rectPt(n.rct.xy, n.rct.wh)
-        lastRszFStitle = document.title
-        targetRszRect = dc.visibleRect()
+    if (!selectionFrame || !selectionStartFrame || !dc.focusObj)
+        return
+    const ms = getCurMillis() - selectionTime
+    const t = (ms / 250)
+    let et = ((t * t) / (2. * (t * t - t) + 1.0));
+    if (ms > targetPosTimout) {
+        et = 1.0
+        EventManager.inst.enabled = true
     }
-    EventManager.inst.setEnabled(false)
+    const tgxy = dc.globalPt(dc.focusObj.rct.xy.subPt(pt(0, 1).coeff(TITLE_H)))
+    const tgwh = dc.focusObj.rct.wh
+    const sgxy = dc.globalPt(selectionStartFrame.xy)
+    const sgwh = selectionStartFrame.wh
+    const gxy = sgxy.addPt(tgxy.subPt(sgxy).coeff(et))
+    const gwh = sgwh.addPt(tgwh.subPt(sgwh).coeff(et))
+   
+    selectionFrameRect = rectPt(dc.localPt(gxy), gwh)
+    selectionFrame.style.left = gxy?.x + 'px'
+    selectionFrame.style.top = gxy?.y + 'px'
+    selectionFrame.style.width = gwh.x + 'px'
+    selectionFrame.style.height = (gwh.y + TITLE_H) + 'px'
+    selectionFrame.style.transform = 'scale(' + dc.scale + ')'
+    selectionFrame.style.transformOrigin = 'left top'
+    selectionFrame.style.outlineWidth = (2 / dc.scale) + 'px'
+    selectionFrame.style.outlineColor = dc.thm.text
+    selectionFrame.style.borderRadius = CORNER_R + 'px'
+    selectionFrame.style.zIndex = nodes.length + ''
 }
 
-function updateNodeTargetRsz() {
-    if (!targetRszNode)
-        return
-    const dc = DC.inst
-    const ms = getCurMillis() - targetRszSetTime
-    const t = (ms / targetRszTimout)
-    const et = ((t * t) / (2. * (t * t - t) + 1.0));
-    const n = targetRszNode as Node
-    const diffxy = targetRszRect.xy.subPt(targetRszStartRect.xy)
-    const diffwh = targetRszRect.wh.subPt(targetRszStartRect.wh)
-    n.rct.xy = targetRszStartRect.xy.addPt(diffxy.coeff(et))
-    n.rct.wh = targetRszStartRect.wh.addPt(diffwh.coeff(et))
-    if (ms > targetRszTimout) {
-        targetRszNode = null
-        if (targetRszFS) {
-            if (dc.fsNode) {
-                dc.fsNode = null
-                document.title = lastRszFStitle
-            } else {
-                dc.fsNode = n
-                document.title = n.title
-            }
+function toggleNodeFullscreen(n: Node) {
+    focusOnNode(n, false)
+    const dc = DC.inst    
+    n.targetRszStartRect = n.rct
+    n.targetRszSetTime = getCurMillis()
+    n.targetRszTimout = 250
+    targetStartPos = dc.off
+    targetStartScale = dc.scale
+    targetPosSetTime = getCurMillis()
+    if (dc.fsNode) {
+        targetPos = lastRszPos
+        targetScale = lastRszScale
+        n.targetRszRect = n.lastRszFSrect
+        n.targetRszCallback = (node)=>{
+            dc.fsNode = null
+            EventManager.inst.setEnabled(true)
         }
-        EventManager.inst.setEnabled(true)
+        document.title = lastRszFStitle
+    } else {
+        targetScale = 1.0
+        const vr = dc.visibleRect(targetScale)
+        const rc = n.rct.center()
+        const vr2 = rectPt(rc.subPt(vr.wh.coeff(0.5)), vr.wh)
+        targetPos = vr2.xy.coeff(-1)
+        n.lastRszFSrect = rectPt(n.rct.xy, n.rct.wh)
+        n.targetRszRect = vr2
+        lastRszFStitle = document.title
+        lastRszScale = dc.scale
+        lastRszPos = dc.off
+        n.targetRszCallback = (node)=>{
+            dc.fsNode = node
+            document.title = node.title
+            EventManager.inst.setEnabled(true)
+        }        
     }
-    updateContent()
+    EventManager.inst.setEnabled(false)
+    n.targetRsz = true;
 }
 
 function initInputEvents() {
@@ -268,7 +337,16 @@ function initInputEvents() {
     window.addEventListener('resize', function(e){
         updateCanvas()        
         lastResize = this.performance.now()
-        EventManager.inst.notify("cansz", pt(this.window.innerWidth, this.window.innerHeight))
+        const newWinSize = pt(this.window.innerWidth, this.window.innerHeight)
+        EventManager.inst.notify("cansz", newWinSize)  
+        off = dc.off = dc.off.addPt(newWinSize.subPt(winSize).coeff(0.5))
+        if (dc.fsNode) {
+            dc.fsNode.rct = dc.visibleRect()
+            dc.fsNode.updateContent()
+        } else {
+            updateContent()
+        }
+        winSize = pt(this.window.innerWidth, this.window.innerHeight)
     })
     window.addEventListener('click', function(e) {
         if (!movedThisMouseDownTime) {
@@ -417,16 +495,18 @@ function initInputEvents() {
                         EventManager.inst.notify("selectall", null)
                     } else if (e.which == 13) {
                         if (dc.focusObj && !dc.fsNode)
-                            scrollToCenter(dc.focusObj)
+                            scrollToCenter(dc.focusObj, true)
                     } else if (dc.focusObj && dc.focusObj instanceof Node && e.key == 'f') {
-                        toggleFullscreen(dc.focusObj as Node)
+                        toggleNodeFullscreen(dc.focusObj as Node)
                     }
-                    if (e.ctrlKey && (e.which == 61 || e.which == 107 || e.which == 173 || e.which == 109  || e.which == 187  || e.which == 189  ) ) {
+                    if (e.ctrlKey && (e.which == 61 || e.which == 107 || e.which == 173 || e.which == 109  || e.which == 187  || e.which == 189 || e.which == 48 ) ) {
                         e.preventDefault();
                         if (e.which == 109 || e.which == 173 || e.which == 189)
-                            zoom(100, pt(window.innerWidth, window.innerHeight).coeff(0.5));
+                            zoom(100, pt(window.innerWidth, window.innerHeight).coeff(0.5))
                         else if (e.which == 107 || e.which == 61 || e.which == 187)
-                            zoom(-100, pt(window.innerWidth, window.innerHeight).coeff(0.5));
+                            zoom(-100, pt(window.innerWidth, window.innerHeight).coeff(0.5))
+                        else if (e.which == 48)
+                            zoom(0, pt(window.innerWidth, window.innerHeight).coeff(0.5))
                     }
                 }
             }
@@ -460,22 +540,25 @@ function render() {
     if (targetPos)
         updateTargetPose()
     
-    if (targetRszNode)
-        updateNodeTargetRsz()
+    updateSelectionFrame()
 
-    const toRm : Array<Node> = []
-    nodes.forEach(n => {
-        if (n.closed) {
-            toRm.push(n)
-        } else {
-            if (!dc.hoverObj)
-                n.checkHover()
-            n.checkContentState()
-        }
-    });
-    toRm.forEach(n => {
-        removeNode(n)
-    })
+    if (dc.fsNode) {
+        dc.fsNode.checkContentState()
+    } else {
+        const toRm : Array<Node> = []
+        nodes.forEach(n => {
+            if (n.closed) {
+                toRm.push(n)
+            } else {
+                if (!dc.hoverObj)
+                    n.checkHover()
+                n.checkContentState()
+            }
+        });
+        toRm.forEach(n => {
+            removeNode(n)
+        })
+    }
     requestAnimationFrame(render)
     
     if (dc.hoverObj || dc.grabObj || panning)

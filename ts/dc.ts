@@ -161,8 +161,9 @@ export class DrawContext {
         return rectPt(this.globalPt(r.xy), r.wh.coeff(this.scale))
     }
 
-    visibleRect() : Rect {
-        return rectPt(this.off.coeff(-1 / this.scale), pt(window.innerWidth, window.innerHeight).coeff(1 / this.scale))
+    visibleRect(scale = 0) : Rect {
+        const scl = (scale == 0) ? DC.inst.scale : scale
+        return rectPt(this.off.coeff(-1 / scl), pt(window.innerWidth, window.innerHeight).coeff(1 / scl))
     }
 };
 
