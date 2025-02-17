@@ -1,4 +1,4 @@
-import {ones, Point2d, pt, rect, Rect, rect_zeros, rectPt, zeros} from "./math"
+import {clamp, ones, Point2d, pt, rect, Rect, rect_zeros, rectPt, zeros} from "./math"
 import { Callback, clbkself } from "./types"
 import { DC } from "./dc"
 
@@ -253,7 +253,7 @@ export class Node {
                             $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
                             $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
                         })
-                        setTimeout(this.finishMovingContent.bind(this), FADE_MS + 1)
+                        setTimeout(this.finishMovingContent.bind(this), FADE_MS / 2)
                         this.contentVisible = true
                         this.contentInProgress = true
                     } else {
@@ -327,12 +327,14 @@ export class Node {
                     const fcer = firstContEl.getBoundingClientRect()
                     const lcer = lastContEl.getBoundingClientRect()
                     const h = lcer.bottom - fcer.top
-                    const hdiff = Math.max(0, (cr.height - h) * 0.5)
-                    const topmarg = hdiff / dc.scale//(Math.abs(cr.height - (lcer.bottom - fcer.top)) * 0.5)
-                    let isContentOverflowing = (lcer.bottom - hdiff) > (cr.bottom - CORNER_R * 4 * DC.inst.scale)
+                    const hdiff = Math.max(0, (cr.height - h) * 0.5 - TITLE_H * dc.scale)
+                    const topmarg = hdiff / dc.scale
+                    const overflow = (lcer.bottom - hdiff) - (cr.bottom - TITLE_H * dc.scale)
+                    let isContentOverflowing = overflow > 0
                     const contInEl = $(this.content).find('.node-content-inner').first()
                     if (isContentOverflowing) {
-                        contInEl.css('mask-image', 'linear-gradient(0deg, transparent 25px, #000 50px)')
+                        const fade = clamp(overflow, 0, 25);
+                        contInEl.css('mask-image', `linear-gradient(0deg, transparent 16px, #000 ${16 + fade}px)`)
                     } else {
                         contInEl.css('mask-image', '')                        
                     }

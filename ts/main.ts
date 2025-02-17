@@ -40,6 +40,7 @@ let selectionTime = 0
 let selectionFrame : HTMLDivElement | null = null
 let selectionStartFrame : Rect | null = null
 let selectionFrameRect : Rect = rect_zeros()
+let selectionMoving = false
 
 function insertAfter(referenceNode : any, newNode : any) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
@@ -133,7 +134,8 @@ function focusOnNode(n: Node, moveIfFits = true, snap = true) {
     if (dc.focusObj && selectionFrame) {
         selectionTime = getCurMillis()
         selectionStartFrame = selectionFrameRect.clone()
-        EventManager.inst.enabled = false
+        selectionMoving = true
+        EventManager.inst.setEnabled(false)
     }
 
     const idx = nodes.indexOf(n)
@@ -150,13 +152,14 @@ function focusOnNode(n: Node, moveIfFits = true, snap = true) {
     dc.focusObj.setClass('unselectable', false)
     resetSelection()
 
-    if (selectionFrame) {
+    if (selectionFrame && selectionMoving) {
         const sf = $(selectionFrame)
         if ((sf.css('display') == 'none') || snap) {
-            EventManager.inst.enabled = true
+            EventManager.inst.setEnabled(true)
             selectionTime = getCurMillis() - 250
             selectionStartFrame = rectPt(dc.focusObj.rct.xy.subPt(pt(0, 1).coeff(TITLE_H)), dc.focusObj.rct.wh)
             sf.show()
+            selectionMoving = false
         }
     }
 
@@ -270,7 +273,8 @@ function updateSelectionFrame() {
     let et = ((t * t) / (2. * (t * t - t) + 1.0));
     if (ms > targetPosTimout) {
         et = 1.0
-        EventManager.inst.enabled = true
+        EventManager.inst.setEnabled(true)
+        selectionMoving = false
     }
     const tgxy = dc.globalPt(dc.focusObj.rct.xy.subPt(pt(0, 1).coeff(TITLE_H)))
     const tgwh = dc.focusObj.rct.wh
@@ -306,8 +310,10 @@ function toggleNodeFullscreen(n: Node) {
         targetScale = lastRszScale
         n.targetRszRect = n.lastRszFSrect
         n.targetRszCallback = (node)=>{
+            dc.fsNode?.setClass("fullscreen", false)
             dc.fsNode = null
-            EventManager.inst.setEnabled(true)
+            if (selectionFrame) $(selectionFrame).show()
+            EventManager.inst.setEnabled(true)            
         }
         document.title = lastRszFStitle
     } else {
@@ -324,6 +330,8 @@ function toggleNodeFullscreen(n: Node) {
         n.targetRszCallback = (node)=>{
             dc.fsNode = node
             document.title = node.title
+            node.setClass("fullscreen", true)
+            if (selectionFrame) $(selectionFrame).hide()
             EventManager.inst.setEnabled(true)
         }        
     }
@@ -580,8 +588,9 @@ $(window).on('load', function () {
 })
 
 //TODO:
-// fix fs view
-// fix image view fade
+//scroll
+//image view transition
+//refactor
 //ctrl arrows move ctrl+shift arrows resize\
 //wasd and shift+wasd pan
 

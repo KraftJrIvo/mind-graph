@@ -129,6 +129,7 @@ export class DrawContext {
         this.renderer = new THREE.WebGLRenderer()
         this.ratio = window.devicePixelRatio ? window.devicePixelRatio : 1
         this.renderer.setPixelRatio(this.ratio)
+        this.renderer.domElement.id = 'renderer'
         container?.appendChild(this.renderer.domElement)
         this.renderer.setSize(window.innerWidth, window.innerHeight)
     }

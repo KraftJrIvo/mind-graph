@@ -59,6 +59,10 @@ img.viewable {
     pointer-events: none;
 }
 
+.node.fullscreen {
+    border-radius: 0% !important;
+}
+
 .node-head {
     overflow: hidden;
     white-space: nowrap;

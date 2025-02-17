@@ -94,7 +94,11 @@ export function viewFullScreen(imgpth: string) {
           srcHover: "res/x.png",
           srcDown: "res/x.png",
           onClick: async () => {
-            viewer.setFullPage(false)
+            //viewer.setFullPage(false)
+            viewer.destroy()
+            $('#openseadragon1').remove()
+            jQuery("#renderer").show()
+            EventManager.inst.setEnabled(true)
           }
         });
         let dwldBtn = new OpenSeadragon.Button({
@@ -129,14 +133,20 @@ export function viewFullScreen(imgpth: string) {
     viewer.viewport.goHome(true)
     viewer.viewport.applyConstraints(true)
     viewer.viewport.zoomTo(1.0, undefined, true)
-    viewer.setFullPage(true)        
+    viewer.element.style.zIndex = ''+(1e6)
+    viewer.element.style.display = 'block'
+    viewer.element.style.position = 'fixed'
+    viewer.element.style.background = '#000'
+    //viewer.setFullPage(true)        
+    jQuery("#renderer").hide()
+    viewer.setVisible(true)
     EventManager.inst.setEnabled(false)
     jQuery("body").removeClass()
     viewer.addOnceHandler("full-page", ()=>{
         viewer.setMouseNavEnabled(false)
         jQuery('#openseadragon1').remove()
         setTimeout(() => {
-            EventManager.inst.setEnabled(true)
+            
         }, 100)    
     })
 }
