@@ -3,19 +3,12 @@ import { EventManager } from "./evtman"
 import { Point2d, pt, Rect, rect, rect_zeros, rectPt, zeros } from "./math"
 import { DC } from "./dc"
 import { getCurMillis } from "./util"
-import { sign } from "crypto"
-
-let lastDraw = 0
-let lastUpdate = 0
 
 let winSize : Point2d = zeros()
 
 let lastMousePos = zeros()
 let lastMouseDownPos = zeros()
-let lastMouseDownTime = 0
-let lastResize = 0
 let movedThisMouseDownTime = false
-let zoomedThisMouseDownTime = false
 let mouseIsDown0 = false
 let mouseIsDown2 = false
 let panning = false
@@ -152,7 +145,7 @@ function focusOnNode(n: Node, moveIfFits = true, snap = true) {
     dc.focusObj.setClass('unselectable', false)
     resetSelection()
 
-    if (selectionFrame && selectionMoving) {
+    if (selectionFrame) {
         const sf = $(selectionFrame)
         if ((sf.css('display') == 'none') || snap) {
             EventManager.inst.setEnabled(true)
@@ -217,6 +210,8 @@ function deselectNodes() {
 
 function removeNode(node: Node) {
     const dc = DC.inst
+    if (node == dc.focusObj)
+        deselectNodes()
     const idx = nodes.indexOf(node)
     nodes[idx].destroy()
     nodes.splice(idx, 1)
@@ -344,7 +339,6 @@ function initInputEvents() {
 
     window.addEventListener('resize', function(e){
         updateCanvas()        
-        lastResize = this.performance.now()
         const newWinSize = pt(this.window.innerWidth, this.window.innerHeight)
         EventManager.inst.notify("cansz", newWinSize)  
         off = dc.off = dc.off.addPt(newWinSize.subPt(winSize).coeff(0.5))
@@ -363,7 +357,7 @@ function initInputEvents() {
     })
 
     if (dc.mobile) {
-        
+        //TODO
     } else {
         window.addEventListener('contextmenu', function(e) {
             e.preventDefault()
@@ -395,7 +389,6 @@ function initInputEvents() {
                         panning = true             
                     } else if (e.button == 0) {
                         mouseIsDown0 = true
-                        lastMouseDownTime = getCurMillis()
                         movedThisMouseDownTime = false
                         if (dc.hoverObj) {
                             if (dc.hoverObj instanceof Node)
@@ -504,8 +497,10 @@ function initInputEvents() {
                     } else if (e.which == 13) {
                         if (dc.focusObj && !dc.fsNode)
                             scrollToCenter(dc.focusObj, true)
-                    } else if (dc.focusObj && dc.focusObj instanceof Node && e.key == 'f') {
+                    } else if (dc.focusObj && dc.focusObj instanceof Node && e.which == 70) {
                         toggleNodeFullscreen(dc.focusObj as Node)
+                    } else if (dc.focusObj && !dc.fsNode && dc.focusObj instanceof Node && e.which == 46) {
+                        dc.focusObj.closed = true
                     }
                     if (e.ctrlKey && (e.which == 61 || e.which == 107 || e.which == 173 || e.which == 109  || e.which == 187  || e.which == 189 || e.which == 48 ) ) {
                         e.preventDefault();
@@ -515,6 +510,12 @@ function initInputEvents() {
                             zoom(-100, pt(window.innerWidth, window.innerHeight).coeff(0.5))
                         else if (e.which == 48)
                             zoom(0, pt(window.innerWidth, window.innerHeight).coeff(0.5))
+                    }
+                    if (e.which == 27) {
+                        if (dc.fsNode)
+                            toggleNodeFullscreen(dc.focusObj as Node)
+                        else
+                            deselectNodes()
                     }
                 }
             }
@@ -588,6 +589,17 @@ $(window).on('load', function () {
 })
 
 //TODO:
+
+//load graph by .../#name
+//add node if local graph
+//rm node if local graph
+//save graph to local memory
+//export graph to json
+//import graph from json
+//clear graph
+//edit node
+//flexsearch
+
 //scroll
 //image view transition
 //refactor

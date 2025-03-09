@@ -20,6 +20,7 @@ body {
     height: 100%;
     overflow: hidden;
     background-color: black;
+    font-size: medium;
 }
  
 canvas {
@@ -38,10 +39,6 @@ img {
     width: 100%;
 }
 
-img.viewable {    
-    border-radius: 10px;
-}
-
 .unselectable {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -52,6 +49,8 @@ img.viewable {
 .node {
     position: fixed;
     overflow: hidden;
+    font-family: 'whitney';
+    font-size: larger;
 }
 
 .node.selection {
@@ -79,11 +78,7 @@ img.viewable {
 }
 
 .node-head-icon {
-    width: 25px;
-    height: 25px;
-    min-width: 25px;
     vertical-align: middle;
-    border-radius: 12.5px;
 }
 
 .node-head-icon-hover {
@@ -121,6 +116,7 @@ img.viewable {
 .formula {
     padding: 5px;
     text-align: center;
+    font-family: 'ebgaramond';
 }
 
 .math {

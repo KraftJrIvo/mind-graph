@@ -7,8 +7,8 @@ import { EventManager } from "./evtman"
 
 import { getCurMillis, getHoveredImage, replaceAll, viewFullScreen } from "./util"
 
-export const CORNER_R = 12.5
-export const TITLE_H = 25
+export const CORNER_R = 15
+export const TITLE_H = 30
 const MIN_SZ = 75
 const MIN_W_RATIO = 0.1
 const FADE_MS = 400
@@ -150,6 +150,10 @@ export class Node {
                 if (svg) {
                     for (var i = 0; i < classes.length; ++i)
                         svg.classList.add(classes[i]);
+                    svg.style.borderRadius = CORNER_R + 'px'
+                    svg.style.width = TITLE_H + 'px'
+                    svg.style.height = TITLE_H + 'px'
+                    svg.style.minWidth = TITLE_H + 'px'
                     if (toEnd)
                         el.appendChild(svg)
                     else
@@ -158,6 +162,13 @@ export class Node {
                         point.elem = svg
                 }
         })
+    }
+
+    prepareContent() {
+        if (this.content) {
+            typesetMathJax(this.content)
+            $(this.content).find('img.viewable').css('border-radius', CORNER_R + 'px')
+        }
     }
 
     fillContent(str?: string) {
@@ -177,7 +188,7 @@ export class Node {
             document.getElementById('container')?.appendChild(div)              
         }
         div.classList.add('node')
-        div.classList.add('math')
+        //div.classList.add('math')
         if (str) {
             $(div).find('.node-title').html(this.title)
             $(div).find('.node-content-inner').html(this.body)
@@ -203,9 +214,9 @@ export class Node {
         }
         this.content = div
         if (str) {
+            this.prepareContent()
             this.contentLoaded = true
             this.contentLoading = false    
-            typesetMathJax(div)
         }
         this.updateRect()
     }
@@ -248,8 +259,10 @@ export class Node {
                         const c = $(this.content).children().first()    
                         const headEl = $(this.content).children()[0] as HTMLDivElement
                         headEl.style.justifyContent = 'space-between'
-                        c.css('white-space', 'nowrap')                    
-                        c.animate({'height': (TITLE_H + 'px'), 'font-size' : '16px'}, FADE_MS / 2, function() {
+                        c.css('white-space', 'nowrap')      
+                        c.css('font-size', 'unset')              
+                        const fontSize = Number(window?.getComputedStyle(headEl)?.getPropertyValue('font-size')?.match(/\d+/)?.at(0))
+                        c.animate({'height': (TITLE_H + 'px'), 'font-size' : fontSize + 'px'}, FADE_MS / 2, function() {
                             $(this).find('.node-head-icon').fadeTo(FADE_MS / 2, 1)
                             $(this).next().stop().fadeTo(FADE_MS / 2, 1) 
                         })
@@ -279,9 +292,10 @@ export class Node {
                             const headEl = $(this.content).children()[0] as HTMLDivElement
                             headEl.style.justifyContent = 'center'            
                             c.find('.node-head-icon').fadeTo(tms / 2, 0)
+                            const fontSize = Number(window?.getComputedStyle(headEl)?.getPropertyValue('font-size')?.match(/\d+/)?.at(0))
                             c.next().stop().fadeTo(tms / 2, 0, function() {
                                 $(this).prev().css('white-space', 'unset')
-                                $(this).prev().animate({'height': '100%', 'font-size' : '48px'}, tms / 2)
+                                $(this).prev().animate({'height': '100%', 'font-size' : (fontSize * 3) + 'px'}, tms / 2)
                             })
                             setTimeout(this.finishMovingContent.bind(this), tms)
                             this.contentVisible = false

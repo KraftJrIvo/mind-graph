@@ -18,3 +18,10 @@ fs.readFile('index.html.in', function(err, data) {
         console.log('Created index.html!');
     }); 
 });
+
+fs.readFile('404.in', function(err, data) {
+    fs.writeFile('index.html', data.toString().replace(/__RAND__/g, makeid(5)), function (err) {
+        if (err) throw err;
+        console.log('Created index.html!');
+    }); 
+});
