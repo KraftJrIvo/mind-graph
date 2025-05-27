@@ -1,7 +1,9 @@
+import { Document } from "flexsearch"
 
 const BASE_URL = 'https://kraftjrivo.github.io/mind-graph'
 
 interface NodeJSON {
+    "id": number,
     "lang": string,
     "title": string,
     "content": string,
@@ -15,7 +17,7 @@ interface GraphListJSON {
 }
 
 interface GraphJSON {
-    "name": string,
+    "title": string,
     "nodes": Array<NodeJSON>
 }
 
@@ -62,7 +64,10 @@ async function getLocalGraph(name: string) {
 
 export class MindGraph {
     public nom : string = ""
+    public title : string = ""
     public remote : boolean = false
+    private nodes : Array<NodeJSON> = []
+    private index : any = null
 
     constructor(nom : string) 
     {
@@ -72,14 +77,41 @@ export class MindGraph {
             this.remote = (remotenames.graphs.includes(nom))
         }).then(() => {
             if (this.remote)
-                getRemoteGraph(this.nom).then(graph => this.init(graph))
+                getRemoteGraph(this.nom).then(graph => graph ? this.init(graph) : this.failInit())
             else
-                getLocalGraph(this.nom).then(graph => this.init(graph))
+                getLocalGraph(this.nom).then(graph => graph ? this.init(graph) : this.failInit())
         })
     }
 
-    init(json : GraphJSON | undefined) 
-    {
-        
+    failInit() {
+
+    }
+
+    init(json : GraphJSON) {
+        this.title = json.title
+        this.nodes = json.nodes
+        this.index = new Document({
+            document: {
+                id: "id",
+                store: true,
+                index: [{
+                    field: "title",
+                    tokenize: "forward",
+                },{
+                    field: "content",
+                    tokenize: "forward",
+                }],
+                tag: [{
+                    field: "tags"
+                }]
+            }
+        })
+
+        this.nodes.forEach(node => {
+            this.index.add(node)
+        });
+        console.log(this.nodes)
+        console.log(this.index)
+        console.log(this.index.search(' '))
     }
 }

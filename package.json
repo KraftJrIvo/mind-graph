@@ -21,9 +21,11 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@types/flexsearch": "^0.7.6",
     "@types/openseadragon": "^3.0.10",
     "@types/three": "^0.170.0",
     "express": "^4.21.1",
+    "flexsearch": "^0.8.204",
     "jquery": "^3.6.0",
     "js-base64": "^3.7.7",
     "jsdom": "^20.0.0",
