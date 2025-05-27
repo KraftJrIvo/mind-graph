@@ -3,6 +3,7 @@ import { EventManager } from "./evtman"
 import { Point2d, pt, Rect, rect, rect_zeros, rectPt, zeros } from "./math"
 import { DC } from "./dc"
 import { getCurMillis } from "./util"
+import { MindGraph } from "./graph"
 
 let winSize : Point2d = zeros()
 
@@ -35,6 +36,8 @@ let selectionStartFrame : Rect | null = null
 let selectionFrameRect : Rect = rect_zeros()
 let selectionMoving = false
 
+let mindgraph : MindGraph | null = null
+
 function insertAfter(referenceNode : any, newNode : any) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
 }
@@ -48,9 +51,10 @@ function init() {
     initDeviceStatus()
     initInputEvents()
 
-    nodes.push(new Node('math', rect(-146, -81, 300, 379)))
-    nodes.push(new Node('sets', rect(256, -159, 276, 105)))
-    nodes.push(new Node('alg', rect(255, 93, 314, 263)))
+    mindgraph = new MindGraph(window.location.hash)
+    //nodes.push(new Node('math', rect(-146, -81, 300, 379)))
+    //nodes.push(new Node('sets', rect(256, -159, 276, 105)))
+    //nodes.push(new Node('alg', rect(255, 93, 314, 263))//)
 
     const container = document.getElementById('container')
     selectionFrame = document.createElement('div')

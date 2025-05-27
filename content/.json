@@ -1,13 +1,13 @@
 {
     "name" : "base",
-    "entries" : [
+    "nodes" : [
         {
             "lang": "ru",
             "title": "Математика",
             "content": "<div align=\"center\"><span class=\"defined\">Теория множеств</span></div><div align=\"center\"><span class=\"defined\">Алгебра</span></div><br/><img class=\"viewable\" src=\"https://kraftjrivo.github.io/mind-graph/res/img/numbers.png\"/>",
             "prefSize": [300, 379],
             "tags": ["math"],
-            "classes": ["math"]
+            "classes": []
         },
         {
             "lang": "ru",
