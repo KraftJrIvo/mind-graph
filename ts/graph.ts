@@ -1,5 +1,5 @@
 
-const BASE_URL = 'https://kraftjrivo.github.io/mind-graph/'
+const BASE_URL = 'https://kraftjrivo.github.io/mind-graph'
 
 interface NodeJSON {
     "lang": string,
@@ -31,6 +31,7 @@ async function getRemoteGraphList() {
 }
 
 async function getRemoteGraph(name: string) {
+  name = name.length ? name : "base"
   return await api<GraphJSON>(`content/${name}.json`);
 }
 
@@ -65,7 +66,6 @@ export class MindGraph {
 
     constructor(nom : string) 
     {
-        nom = nom.length ? nom : "_"
         this.nom = nom
 
         getRemoteGraphList().then(remotenames => {
