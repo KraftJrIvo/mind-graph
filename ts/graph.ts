@@ -65,6 +65,7 @@ export class MindGraph {
 
     constructor(nom : string) 
     {
+        nom = nom.length ? nom : "_"
         this.nom = nom
 
         getRemoteGraphList().then(remotenames => {
